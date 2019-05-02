@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package ibento;
+
+option csharp_namespace = "IBento";
+option go_package = "ibento";
+option java_multiple_files = true;
+option java_outer_classname = "GraphqlProto";
+option java_package = "com.mspf.ibento";
+option objc_class_prefix = "MWX";
+option php_namespace = "MSPF\\IBento";
+
+import "struct.proto";
+
+service IBento {
+  // streams data continually, without any historic data.
+  rpc Subscribe(SubscribeRequest) returns (stream Event);
+  // replays a part of historic data. TODO: could be named seek
+  // rpc Replay(ReplayRequest) returns (stream Event);
+
+  // IDEA: https://cloud.google.com/pubsub/docs/reference/rpc/
+  // store the subscription on the server side, and then rename replay to
+  // pull. Pull will allow continually pulling new batches for that
+  // subscription. We can then use Seek to jump back and forth in time for that
+  // sub.
+  // a bidi stream could also be interesting if we go for ACKs
+  // https://github.com/googleapis/googleapis/blob/dd42335a9a8613072bef9cbda2725e84631d7043/google/pubsub/v1/pubsub.proto#L118
+}
+
+message SubscribeRequest {
+  repeated string topics = 1;
+}
+
+message ReplayRequest {
+  repeated string topics = 1;
+  uint64 after = 2;
+  uint64 limit = 3;
+}
+
+message Event {
+  string event_id = 1;
+  string type = 2;
+  string correlation = 3;
+  string causation = 4;
+  google.protobuf.Struct data = 5;
+  google.protobuf.Struct metadata = 6;
+  bool debug = 7;
+  uint64 inserted_at = 8;
+  // streams / topics
+}

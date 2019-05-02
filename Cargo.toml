@@ -1,0 +1,37 @@
+[package]
+name = "ibento-rs"
+version = "0.1.0"
+authors = ["Blaž Hrastnik <blaz@mxxn.io>"]
+edition = "2018"
+
+[[bin]]
+name = "ibento-server"
+path = "src/server.rs"
+
+[[bin]]
+name = "ibento-client"
+path = "src/client.rs"
+
+[dependencies]
+futures = "0.1"
+bytes = "0.4"
+env_logger = { version = "0.5", default-features = false }
+log = "0.4"
+http = "0.1"
+prost = "0.5"
+prost-types = "0.5"
+tokio = "0.1"
+tower-request-modifier = { git = "https://github.com/tower-rs/tower-http" }
+tower-grpc = { git = "https://github.com/LucioFranco/tower-grpc/", branch = "hyper", features = ["tower-hyper"] }
+tower-hyper = { git = "https://github.com/tower-rs/tower-hyper" }
+hyper = "0.12"
+tower-service = "0.2"
+tower-util = "0.1"
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+maplit = "1.0.1"
+bb8-postgres = "0.3.0"
+
+[build-dependencies]
+tower-grpc-build = { git = "https://github.com/LucioFranco/tower-grpc/", branch = "hyper", features = ["tower-hyper"] }
