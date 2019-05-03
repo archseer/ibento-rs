@@ -37,7 +37,7 @@ serde_derive = "1.0"
 maplit = "1.0.1"
 runtime = "0.3.0-alpha.3"
 runtime-tokio = "0.3.0-alpha.3"
-diesel = { version = "1.0.0", features = ["postgres", "r2d2"] }
+diesel = { version = "1.0.0", features = ["postgres", "r2d2", "uuid", "chrono", "serde_json"] }
 dotenv = "0.9.0"
 r2d2 = "0.8.4"
 tokio-threadpool = "0.1.14"

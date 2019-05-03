@@ -26,8 +26,6 @@ use diesel::Connection;
 use diesel::PgConnection;
 use r2d2::{CustomizeConnection, Pool, PooledConnection};
 use tokio_threadpool::blocking;
-// use bb8::Pool;
-// use bb8_postgres::PostgresConnectionManager;
 
 use std::sync::Arc;
 // use std::time::Instant;
@@ -80,27 +78,16 @@ impl ibento::grpc::server::IBento for IBento {
         let state = self.state.clone();
 
         runtime::spawn(async move {
-            // let mut tx = tx.wait();
-
-            let connection = state.pool.get();
-            await!(blocking_fn(move || { 
-                // do DB query here
-                assert!(connection.is_ok());
+            use schema::events::dsl::*;
+            let connection = state.pool.get().unwrap();
+            let data = await!(blocking_fn(move || { 
+                // assert!(connection.is_ok());
+                events.limit(5).load::<crate::data::Event>(&connection).expect("Error loading events")
             }));
 
-            await!(tx.send(Ok(Event {
-                event_id: "abc".to_owned(),
-                r#type: "VehicleEvent".to_owned(),
-                correlation: "a".to_owned(),
-                causation: "b".to_owned(),
-                data: None,
-                metadata: None,
-                inserted_at: 1,
-                debug: false,
-            })))
-            .unwrap();
-
-            println!(" /// done sending");
+            for event in data {
+                await!(tx.send(Ok(event.into()))).unwrap();
+            }
         });
 
         futures01::future::ok(Response::new(Box::new(rx.compat())))
@@ -207,23 +194,12 @@ pub async fn main() -> std::io::Result<()> {
 
     dotenv().ok();
 
-    let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = ConnectionManager::new(database_url);
+
     let pool = r2d2::Pool::builder()
             .build(manager)
             .expect("could not initiate test db pool");
-    // let manager = PostgresConnectionManager::new(
-    //     "postgresql://postgres:postgres@localhost:5432/ibento_dev",
-    //     tokio_postgres::tls::NoTls,
-    // );
-
-    // let pool = await!(
-    //     Pool::builder()
-    //         .build(manager)
-	    // .compat()
-    //         .map_err(|e| bb8::RunError::User(e))
-    // ).unwrap();
 
     let handler = IBento {
         state: Arc::new(State { pool }),
