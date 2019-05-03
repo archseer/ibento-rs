@@ -13,7 +13,8 @@ name = "ibento-client"
 path = "src/client.rs"
 
 [dependencies]
-futures = "0.1"
+futures01 = { package = "futures", version = "0.1" }
+futures-preview = {git = "https://github.com/rust-lang-nursery/futures-rs/", features = ["compat", "io-compat", "async-await", "nightly"]}
 bytes = "0.4"
 env_logger = { version = "0.5", default-features = false }
 log = "0.4"
@@ -31,7 +32,12 @@ serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 maplit = "1.0.1"
-bb8-postgres = "0.3.0"
+runtime = "0.3.0-alpha.3"
+runtime-tokio = "0.3.0-alpha.3"
+diesel = { version = "1.0.0", features = ["postgres", "r2d2"] }
+dotenv = "0.9.0"
+r2d2 = "0.8.4"
+tokio-threadpool = "0.1.14"
 
 [build-dependencies]
 tower-grpc-build = { git = "https://github.com/LucioFranco/tower-grpc/", branch = "hyper", features = ["tower-hyper"] }

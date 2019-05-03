@@ -1,49 +1,60 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![feature(async_await, await_macro)]
 
-extern crate bytes;
-extern crate env_logger;
-extern crate futures;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate maplit;
-extern crate prost;
-extern crate tokio;
-extern crate tower_grpc;
-extern crate tower_hyper;
-
-extern crate serde;
-extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate dotenv;
 
 // mod data;
 pub mod ibento {
     include!(concat!(env!("OUT_DIR"), "/ibento.rs"));
 }
-use ibento::{server, Event, SubscribeRequest};
+use crate::ibento::{server, Event, SubscribeRequest};
 
-use futures::sync::mpsc;
-use futures::{future, stream, Future, Sink, Stream};
+use dotenv::dotenv;
+
+use futures01::sync::mpsc;
+use futures01::{future, Future, Sink, Stream};
 use tokio::executor::DefaultExecutor;
 use tokio::net::TcpListener;
-use tower_grpc::{Request, Response, Streaming};
+use tower_grpc::{Request, Response};
 use tower_hyper::server::{Http, Server};
 
-use std::collections::HashMap;
+use futures::{
+  compat::*,
+  future::{FutureExt, TryFutureExt},
+  io::AsyncWriteExt,
+  stream::StreamExt,
+  sink::SinkExt,
+};
+
+use diesel::prelude::*;
+use diesel::r2d2::ConnectionManager;
+use diesel::Connection;
+use diesel::PgConnection;
+use r2d2::{CustomizeConnection, Pool, PooledConnection};
+use tokio_threadpool::blocking;
+// use bb8::Pool;
+// use bb8_postgres::PostgresConnectionManager;
+
 use std::sync::Arc;
 // use std::time::Instant;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct IBento {
     state: Arc<State>,
 }
 
-#[derive(Debug)]
 struct State {
-    // features: Vec<ibento::Feature>,
-// notes: Mutex<HashMap<Point, Vec<RouteNote>>>,
+    pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 impl ibento::server::IBento for IBento {
@@ -193,15 +204,32 @@ impl ibento::server::IBento for IBento {
     //}
 }
 
-pub fn main() {
+#[runtime::main(runtime_tokio::Tokio)]
+pub async fn main() -> std::io::Result<()> {
     let _ = ::env_logger::init();
 
+    dotenv().ok();
+
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
+    let manager = ConnectionManager::new(database_url);
+    let pool = r2d2::Pool::builder()
+            .build(manager)
+            .expect("could not initiate test db pool");
+    // let manager = PostgresConnectionManager::new(
+    //     "postgresql://postgres:postgres@localhost:5432/ibento_dev",
+    //     tokio_postgres::tls::NoTls,
+    // );
+
+    // let pool = await!(
+    //     Pool::builder()
+    //         .build(manager)
+	    // .compat()
+    //         .map_err(|e| bb8::RunError::User(e))
+    // ).unwrap();
+
     let handler = IBento {
-        state: Arc::new(State {
-            // Load data file
-            // features: data::load(),
-            // notes: Mutex::new(HashMap::new()),
-        }),
+        state: Arc::new(State { pool }),
     };
 
     let new_service = server::IBentoServer::new(handler);
@@ -213,21 +241,22 @@ pub fn main() {
     let addr = "127.0.0.1:5600".parse().unwrap();
     let bind = TcpListener::bind(&addr).expect("bind");
 
-    println!("listening on {:?}", addr);
+    println!("Listening on {:?}", addr);
 
     let serve = bind
-        .incoming()
-        .for_each(move |sock| {
-            if let Err(e) = sock.set_nodelay(true) {
-                return Err(e);
-            }
+	.incoming()
+	.for_each(move |sock| {
+	    if let Err(e) = sock.set_nodelay(true) {
+		return Err(e);
+	    }
 
-            let serve = server.serve_with(sock, http.clone());
-            tokio::spawn(serve.map_err(|e| error!("h2 error: {:?}", e)));
+	    let serve = server.serve_with(sock, http.clone());
+	    runtime::spawn(serve.map_err(|e| error!("h2 error: {:?}", e)).compat());
 
-            Ok(())
-        })
-        .map_err(|e| eprintln!("accept error: {}", e));
+	    Ok::<(), std::io::Error>(())
+	});
+ 
+    await!(serve.compat())?;
 
-    tokio::run(serve);
+    Ok(())
 }
