@@ -2,27 +2,11 @@
 #![allow(unused_variables)]
 #![feature(async_await, await_macro)]
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate maplit;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate dotenv;
-
-// mod data;
-pub mod ibento {
-    include!(concat!(env!("OUT_DIR"), "/ibento.rs"));
-}
-use crate::ibento::{server, Event, SubscribeRequest};
+use ibento::grpc::{server, Event, SubscribeRequest};
 
 use dotenv::dotenv;
 
-use futures01::sync::mpsc;
-use futures01::{future, Future, Sink, Stream};
+use futures01::{Future, Stream};
 use tokio::executor::DefaultExecutor;
 use tokio::net::TcpListener;
 use tower_grpc::{Request, Response};
@@ -32,7 +16,7 @@ use futures::{
   compat::*,
   future::{FutureExt, TryFutureExt},
   io::AsyncWriteExt,
-  stream::StreamExt,
+  stream::{StreamExt, TryStreamExt},
   sink::SinkExt,
 };
 
@@ -48,6 +32,8 @@ use tokio_threadpool::blocking;
 use std::sync::Arc;
 // use std::time::Instant;
 
+use ibento::{schema, data};
+
 #[derive(Clone)]
 struct IBento {
     state: Arc<State>,
@@ -57,8 +43,8 @@ struct State {
     pool: Pool<ConnectionManager<PgConnection>>,
 }
 
-impl ibento::server::IBento for IBento {
-    // type GetFeatureFuture = future::FutureResult<Response<Feature>, tower_grpc::Status>;
+impl ibento::grpc::server::IBento for IBento {
+    // type GetFeatureFuture = futures01::FutureResult<Response<Feature>, tower_grpc::Status>;
 
     // /// returns the feature at the given point.
     // fn get_feature(&mut self, request: Request<Point>) -> Self::GetFeatureFuture {
@@ -66,7 +52,7 @@ impl ibento::server::IBento for IBento {
 
     //     for feature in &self.state.features[..] {
     //         if feature.location.as_ref() == Some(request.get_ref()) {
-    //             return future::ok(Response::new(feature.clone()));
+    //             return futures01::ok(Response::new(feature.clone()));
     //         }
     //     }
 
@@ -76,33 +62,33 @@ impl ibento::server::IBento for IBento {
     //         location: None,
     //     });
 
-    //     future::ok(response)
+    //     futures01::ok(response)
     // }
 
     type SubscribeStream = Box<Stream<Item = Event, Error = tower_grpc::Status> + Send>;
     type SubscribeFuture =
-        future::FutureResult<Response<Self::SubscribeStream>, tower_grpc::Status>;
+        futures01::future::FutureResult<Response<Self::SubscribeStream>, tower_grpc::Status>;
 
     /// Lists all features contained within the given bounding Rectangle.
+    // fn subscribe(&mut self, request: Request<SubscribeRequest>) -> Self::SubscribeFuture {
     fn subscribe(&mut self, request: Request<SubscribeRequest>) -> Self::SubscribeFuture {
-        use std::thread;
-
         println!("Subscribe = {:?}", request);
 
-        let (tx, rx) = mpsc::channel(4);
+        // let (tx, rx) = mpsc::channel(4);
+        let (mut tx, rx) = futures::channel::mpsc::channel::<Result<Event, tower_grpc::Status>>(4);
 
         let state = self.state.clone();
 
-        thread::spawn(move || {
-            let mut tx = tx.wait();
+        runtime::spawn(async move {
+            // let mut tx = tx.wait();
 
-            // for feature in &state.features[..] {
-            //     if in_range(feature.location.as_ref().unwrap(), request.get_ref()) {
-            //         println!("  => send {:?}", feature);
-            //         tx.send(feature.clone()).unwrap();
-            //     }
-            // }
-            tx.send(Event {
+            let connection = state.pool.get();
+            await!(blocking_fn(move || { 
+                // do DB query here
+                assert!(connection.is_ok());
+            }));
+
+            await!(tx.send(Ok(Event {
                 event_id: "abc".to_owned(),
                 r#type: "VehicleEvent".to_owned(),
                 correlation: "a".to_owned(),
@@ -111,14 +97,13 @@ impl ibento::server::IBento for IBento {
                 metadata: None,
                 inserted_at: 1,
                 debug: false,
-            })
+            })))
             .unwrap();
 
             println!(" /// done sending");
         });
 
-        let rx = rx.map_err(|_| unimplemented!());
-        future::ok(Response::new(Box::new(rx)))
+        futures01::future::ok(Response::new(Box::new(rx.compat())))
     }
 
     //type RecordRouteFuture =
@@ -178,7 +163,7 @@ impl ibento::server::IBento for IBento {
 
     //type RouteChatStream = Box<Stream<Item = RouteNote, Error = tower_grpc::Status> + Send>;
     //type RouteChatFuture =
-    //    future::FutureResult<Response<Self::RouteChatStream>, tower_grpc::Status>;
+    //    futures01::FutureResult<Response<Self::RouteChatStream>, tower_grpc::Status>;
 
     //// Receives a stream of message/location pairs, and responds with a stream
     //// of all previous messages at each of those locations.
@@ -200,8 +185,20 @@ impl ibento::server::IBento for IBento {
     //        })
     //        .flatten();
 
-    //    future::ok(Response::new(Box::new(response)))
+    //    futures01::ok(Response::new(Box::new(response)))
     //}
+}
+
+fn blocking_fn<F, T>(mut f: F) -> impl futures::future::Future<Output = T>
+where F: FnMut() -> T {
+    futures::future::poll_fn(move |_| {
+        match tokio_threadpool::blocking(|| {
+            f()
+        }).expect("the threadpool shut down") {
+            futures01::Async::Ready(n) => futures::task::Poll::Ready(n),
+            futures01::Async::NotReady => futures::task::Poll::Pending
+        }
+    })
 }
 
 #[runtime::main(runtime_tokio::Tokio)]
@@ -251,7 +248,7 @@ pub async fn main() -> std::io::Result<()> {
 	    }
 
 	    let serve = server.serve_with(sock, http.clone());
-	    runtime::spawn(serve.map_err(|e| error!("h2 error: {:?}", e)).compat());
+	    runtime::spawn(serve.map_err(|e| panic!("h2 error: {:?}", e)).compat());
 
 	    Ok::<(), std::io::Error>(())
 	});

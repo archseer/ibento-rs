@@ -1,9 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-#[macro_use]
-extern crate serde_derive;
-
 use futures01::{Future, Stream};
 use hyper::client::connect::{Destination, HttpConnector};
 use std::time::Instant;
@@ -12,12 +9,9 @@ use tower_grpc::Request;
 use tower_hyper::{client, util};
 use tower_util::MakeService;
 
-use crate::ibento::SubscribeRequest;
+use ibento::grpc::SubscribeRequest;
 
-mod data;
-pub mod ibento {
-    include!(concat!(env!("OUT_DIR"), "/ibento.rs"));
-}
+use ibento::data;
 
 pub fn main() {
     let _ = ::env_logger::init();
@@ -35,7 +29,7 @@ pub fn main() {
             panic!("HTTP/2 connection failed; err={:?}", e);
         })
         .map(move |conn| {
-            use crate::ibento::client::IBento;
+            use ibento::grpc::client::IBento;
 
             let conn = tower_request_modifier::Builder::new()
                 .set_origin(uri)
