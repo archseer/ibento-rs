@@ -1,6 +1,6 @@
 # ibento-rs / lighthouse
 
-![bento](./bento.svg)
+![bento](./bento.png)
 
 tower + ibents => lighthouse
 

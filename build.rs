@@ -1,7 +1,6 @@
 extern crate tower_grpc_build;
 
 fn main() {
-    // Build routeguide
     tower_grpc_build::Config::new()
         .enable_server(true)
         .enable_client(true)
