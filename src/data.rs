@@ -28,8 +28,10 @@ impl From<Event> for crate::grpc::Event {
             correlation: event.correlation.unwrap_or(String::from("")),
             causation: event.causation.unwrap_or(String::from("")),
             debug: event.debug,
-            // TODO use iso 8601
-            inserted_at: event.inserted_at.timestamp_nanos() as u64,
+            inserted_at: Some(prost_types::Timestamp {
+                seconds: event.inserted_at.timestamp(),
+                nanos: event.inserted_at.timestamp_subsec_nanos() as i32,
+            }),
             data: Some(event.data.into()),
             metadata: Some(event.metadata.into()),
         }
