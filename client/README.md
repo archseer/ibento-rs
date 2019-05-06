@@ -5,12 +5,12 @@
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `client` to your list of dependencies in `mix.exs`:
+by adding `ibento_client` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:client, "~> 0.1.0"}
+    {:ibento_client, git: "<..>", sparse: "client"}
   ]
 end
 ```
