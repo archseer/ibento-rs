@@ -1,0 +1,15 @@
+difference between push and pull -> pull for historic data
+grpc since the data is unstructured
+use google cloud style subscriptions that are persisted on the server end
+also that allows us to do seek style apis
+do we care about ack?
+
+bidi stream where we can request more data
+
+implementing the subscribe historic + more could be a catchup type subscription
+like in eventstore that's implemented on the user end with a buffer
+
+how do we deal with continuous poll with backpressure if there's no results?
+I guess resched
+
+topic: type:id or type:$all or $all?
