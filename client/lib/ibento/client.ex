@@ -1,7 +1,6 @@
 defmodule Ibento.Client do
   @moduledoc """
   """
-
   require Logger
 
   @spec subscribe(%{topics: [String.t()]}) :: {:ok, stream :: term()} | {:error, reason :: term()}
@@ -23,6 +22,16 @@ defmodule Ibento.Client do
     end
   end
 
+  # TODO: implement a wrapper that takes a fn (plus a calculate_cursor fn) and
+  # streams responses back into the callback. If a batch completes, keep
+  # fetching. If the connection breaks, reopen, but first recalculate the
+  # cursor. If no data or connection issues, use exponential backoff.
+  #
+  # This type of consumer/connection wrapper is nice since it implements most of
+  # the boilerplate for us. In the future we could also allow an extra config
+  # setting that would enable parallel processing via a pool, without any
+  # breaking changes to the API.
+ 
   # defmodule Connection do
   #   @behavior :gen_statem
 
