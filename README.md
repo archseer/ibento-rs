@@ -2,7 +2,7 @@
 
 ![bento](./bento.png)
 
-tower + ibents => lighthouse
+tower(_grpc) + ibents => lighthouse
 
 Ibento implements a gRPC server that provides event streaming capabilities
 (event bus) similar to Kafka, but allows filtering and replaying historic data.
@@ -13,7 +13,11 @@ it's easy to generate bindings for it in various programming languages.
 # Build
 
 ```
+cd server
 cargo run --bin ibento-server
 cargo run --bin ibento-client
+cd client
+iex -S mix
+iex> Ibento.Client.subscribe(%{topics: ["a", "b"]})
 ```
 
