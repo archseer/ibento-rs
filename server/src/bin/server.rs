@@ -33,7 +33,7 @@ use std::sync::Arc;
 use ibento::{schema, data};
 
 #[derive(Clone)]
-struct IBento {
+struct Ibento {
     state: Arc<State>,
 }
 
@@ -41,7 +41,7 @@ struct State {
     pool: Pool<ConnectionManager<PgConnection>>,
 }
 
-impl ibento::grpc::server::IBento for IBento {
+impl ibento::grpc::server::Ibento for Ibento {
     // type GetFeatureFuture = futures01::FutureResult<Response<Feature>, tower_grpc::Status>;
 
     // /// returns the feature at the given point.
@@ -203,11 +203,11 @@ pub async fn main() -> std::io::Result<()> {
             .build(manager)
             .expect("could not initiate test db pool");
 
-    let handler = IBento {
+    let handler = Ibento {
         state: Arc::new(State { pool }),
     };
 
-    let new_service = server::IBentoServer::new(handler);
+    let new_service = server::IbentoServer::new(handler);
 
     let mut server = Server::new(new_service);
     let http = Http::new().http2_only(true).clone();

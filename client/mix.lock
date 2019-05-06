@@ -1,0 +1,9 @@
+%{
+  "acceptor_pool": {:hex, :acceptor_pool, "1.0.0", "43c20d2acae35f0c2bcd64f9d2bde267e459f0f3fd23dab26485bf518c281b21", [:rebar3], [], "hexpm"},
+  "chatterbox": {:hex, :ts_chatterbox, "0.9.1", "843557ee729b04b3c1bdac33fb162daefdbf4f7ae0af0bdc055fb16e91e057e3", [:rebar3], [{:hpack, "~>0.2.3", [hex: :hpack_erl, repo: "hexpm", optional: false]}], "hexpm"},
+  "ctx": {:hex, :ctx, "0.5.0", "78e0f16712e12d707a7f34277381b8e193d7c71eaa24d37330dc02477c09eda5", [:rebar3], [], "hexpm"},
+  "gpb": {:hex, :gpb, "4.7.2", "2b93b9c765e8517f9927a2dc37ee42750ed3aa7f4d7d163bf316336ef63f62c6", [:make, :rebar], [], "hexpm"},
+  "gproc": {:hex, :gproc, "0.8.0", "cea02c578589c61e5341fce149ea36ccef236cc2ecac8691fba408e7ea77ec2f", [:rebar3], [], "hexpm"},
+  "grpcbox": {:git, "https://github.com/potatosalad/grpcbox.git", "059bbd793a25b4d97e5e87bd8c8cb03cad8aa612", [branch: "wip"]},
+  "hpack": {:hex, :hpack_erl, "0.2.3", "17670f83ff984ae6cd74b1c456edde906d27ff013740ee4d9efaa4f1bf999633", [:rebar3], [], "hexpm"},
+}

@@ -2,18 +2,18 @@ syntax = "proto3";
 
 package ibento;
 
-option csharp_namespace = "IBento";
+option csharp_namespace = "Ibento";
 option go_package = "ibento";
 option java_multiple_files = true;
 option java_outer_classname = "GraphqlProto";
 option java_package = "com.mspf.ibento";
 option objc_class_prefix = "MWX";
-option php_namespace = "MSPF\\IBento";
+option php_namespace = "MSPF\\Ibento";
 
-import "struct.proto";
-import "timestamp.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
-service IBento {
+service Ibento {
   // streams data continually, without any historic data.
   rpc Subscribe(SubscribeRequest) returns (stream Event);
   // replays a part of historic data. TODO: could be named seek

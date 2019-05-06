@@ -4,7 +4,7 @@
 
 tower + ibents => lighthouse
 
-IBento implements a gRPC server that provides event streaming capabilities
+Ibento implements a gRPC server that provides event streaming capabilities
 (event bus) similar to Kafka, but allows filtering and replaying historic data.
 
 gRPC was chosen over GraphQL because the event model is quite flat, and because

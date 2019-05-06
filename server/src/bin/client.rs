@@ -29,14 +29,14 @@ pub fn main() {
             panic!("HTTP/2 connection failed; err={:?}", e);
         })
         .map(move |conn| {
-            use ibento::grpc::client::IBento;
+            use ibento::grpc::client::Ibento;
 
             let conn = tower_request_modifier::Builder::new()
                 .set_origin(uri)
                 .build(conn)
                 .unwrap();
 
-            IBento::new(conn)
+            Ibento::new(conn)
         })
         .and_then(|mut client| {
             let start = Instant::now();
