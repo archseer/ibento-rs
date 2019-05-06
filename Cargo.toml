@@ -22,11 +22,13 @@ bytes = "0.4"
 env_logger = { version = "0.5", default-features = false }
 log = "0.4"
 http = "0.1"
-prost = "0.5"
-prost-types = "0.5"
+# prost = "0.5"
+# prost-types = "0.5"
+prost = { git = "https://github.com/archseer/prost" }
+prost-types = { git = "https://github.com/archseer/prost", features = ["serde_json"] }
 tokio = "0.1"
 tower-request-modifier = { git = "https://github.com/tower-rs/tower-http" }
-tower-grpc = { git = "https://github.com/LucioFranco/tower-grpc/", branch = "hyper", features = ["tower-hyper"] }
+tower-grpc = { git = "https://github.com/tower-rs/tower-grpc", features = ["tower-hyper"] }
 tower-hyper = { git = "https://github.com/tower-rs/tower-hyper" }
 hyper = "0.12"
 tower-service = "0.2"
@@ -43,6 +45,9 @@ r2d2 = "0.8.4"
 tokio-threadpool = "0.1.14"
 chrono = "0.4.6"
 uuid = "0.7.4"
+
+[patch.crates-io]
+prost = { git = "https://github.com/archseer/prost", features = ["serde_json"] }
 
 [build-dependencies]
 tower-grpc-build = { git = "https://github.com/LucioFranco/tower-grpc/", branch = "hyper", features = ["tower-hyper"] }

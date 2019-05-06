@@ -42,8 +42,8 @@ message Event {
   string type = 2;
   string correlation = 3;
   string causation = 4;
-  google.protobuf.Struct data = 5;
-  google.protobuf.Struct metadata = 6;
+  google.protobuf.Value data = 5;
+  google.protobuf.Value metadata = 6;
   bool debug = 7;
   uint64 inserted_at = 8;
   // streams / topics

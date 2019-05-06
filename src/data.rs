@@ -25,14 +25,13 @@ impl From<Event> for crate::grpc::Event {
         Self {
             event_id: event.id.to_string().to_owned(),
             r#type: event.type_,
-            correlation: event.correlation.or_else(""),
-            causation: event.causation.or_else(""),
+            correlation: event.correlation.unwrap_or(String::from("")),
+            causation: event.causation.unwrap_or(String::from("")),
             debug: event.debug,
             // TODO use iso 8601
             inserted_at: event.inserted_at.timestamp_nanos() as u64,
-            data: None,
-            metadata: None,
-            // TODO: cross encode data and metadata
+            data: Some(event.data.into()),
+            metadata: Some(event.metadata.into()),
         }
     }
 }

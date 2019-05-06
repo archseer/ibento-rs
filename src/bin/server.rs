@@ -78,15 +78,16 @@ impl ibento::grpc::server::IBento for IBento {
         let state = self.state.clone();
 
         runtime::spawn(async move {
+            // TODO error handling
             let connection = state.pool.get().unwrap();
             let data = await!(blocking_fn(move || { 
                 use schema::events::dsl::*;
-                // assert!(connection.is_ok());
                 // events.limit(5).load::<crate::data::Event>(&connection).expect("Error loading events")
                 events.limit(5).load::<crate::data::Event>(&connection).expect("Error loading events")
             }));
 
             for event in data {
+                println!("Event = {:?}", event);
                 await!(tx.send(Ok(event.into()))).unwrap();
             }
         });
