@@ -47,5 +47,6 @@ message Event {
   google.protobuf.Value metadata = 6;
   bool debug = 7;
   google.protobuf.Timestamp inserted_at = 8;
+  string ingest_id = 9;
   // streams / topics
 }

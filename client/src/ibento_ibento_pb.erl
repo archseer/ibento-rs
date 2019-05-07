@@ -70,7 +70,8 @@
         data                    => value(),         % = 5
         metadata                => value(),         % = 6
         debug                   => boolean() | 0 | 1, % = 7
-        inserted_at             => timestamp()      % = 8
+        inserted_at             => timestamp(),     % = 8
+        ingest_id               => iodata()         % = 9
        }.
 
 -type struct() ::
@@ -260,17 +261,29 @@ encode_msg_event(#{} = M, Bin, TrUserData) ->
 	       end;
 	   _ -> B6
 	 end,
+    B8 = case M of
+	   #{inserted_at := F8} ->
+	       begin
+		 TrF8 = id(F8, TrUserData),
+		 if TrF8 =:= undefined -> B7;
+		    true ->
+			e_mfield_event_inserted_at(TrF8, <<B7/binary, 66>>,
+						   TrUserData)
+		 end
+	       end;
+	   _ -> B7
+	 end,
     case M of
-      #{inserted_at := F8} ->
+      #{ingest_id := F9} ->
 	  begin
-	    TrF8 = id(F8, TrUserData),
-	    if TrF8 =:= undefined -> B7;
-	       true ->
-		   e_mfield_event_inserted_at(TrF8, <<B7/binary, 66>>,
-					      TrUserData)
+	    TrF9 = id(F9, TrUserData),
+	    case is_empty_string(TrF9) of
+	      true -> B8;
+	      false ->
+		  e_type_string(TrF9, <<B8/binary, 74>>, TrUserData)
 	    end
 	  end;
-      _ -> B7
+      _ -> B8
     end.
 
 encode_msg_struct(Msg, TrUserData) ->
@@ -892,52 +905,60 @@ decode_msg_event(Bin, TrUserData) ->
 			     id(<<>>, TrUserData), id(<<>>, TrUserData),
 			     id('$undef', TrUserData), id('$undef', TrUserData),
 			     id(false, TrUserData), id('$undef', TrUserData),
-			     TrUserData).
+			     id(<<>>, TrUserData), TrUserData).
 
 dfp_read_field_def_event(<<10, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			 TrUserData) ->
     d_field_event_event_id(Rest, Z1, Z2, F@_1, F@_2, F@_3,
-			   F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+			   F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
 dfp_read_field_def_event(<<18, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			 TrUserData) ->
     d_field_event_type(Rest, Z1, Z2, F@_1, F@_2, F@_3, F@_4,
-		       F@_5, F@_6, F@_7, F@_8, TrUserData);
+		       F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
 dfp_read_field_def_event(<<26, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			 TrUserData) ->
     d_field_event_correlation(Rest, Z1, Z2, F@_1, F@_2,
-			      F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+			      F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+			      TrUserData);
 dfp_read_field_def_event(<<34, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			 TrUserData) ->
     d_field_event_causation(Rest, Z1, Z2, F@_1, F@_2, F@_3,
-			    F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+			    F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
 dfp_read_field_def_event(<<42, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			 TrUserData) ->
     d_field_event_data(Rest, Z1, Z2, F@_1, F@_2, F@_3, F@_4,
-		       F@_5, F@_6, F@_7, F@_8, TrUserData);
+		       F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
 dfp_read_field_def_event(<<50, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			 TrUserData) ->
     d_field_event_metadata(Rest, Z1, Z2, F@_1, F@_2, F@_3,
-			   F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+			   F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
 dfp_read_field_def_event(<<56, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			 TrUserData) ->
     d_field_event_debug(Rest, Z1, Z2, F@_1, F@_2, F@_3,
-			F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+			F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
 dfp_read_field_def_event(<<66, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			 TrUserData) ->
     d_field_event_inserted_at(Rest, Z1, Z2, F@_1, F@_2,
-			      F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+			      F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+			      TrUserData);
+dfp_read_field_def_event(<<74, Rest/binary>>, Z1, Z2,
+			 F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+			 TrUserData) ->
+    d_field_event_ingest_id(Rest, Z1, Z2, F@_1, F@_2, F@_3,
+			    F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
 dfp_read_field_def_event(<<>>, 0, 0, F@_1, F@_2, F@_3,
-			 F@_4, F@_5, F@_6, F@_7, F@_8, _) ->
+			 F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, _) ->
     S1 = #{event_id => F@_1, type => F@_2,
-	   correlation => F@_3, causation => F@_4, debug => F@_7},
+	   correlation => F@_3, causation => F@_4, debug => F@_7,
+	   ingest_id => F@_9},
     S2 = if F@_5 == '$undef' -> S1;
 	    true -> S1#{data => F@_5}
 	 end,
@@ -948,70 +969,82 @@ dfp_read_field_def_event(<<>>, 0, 0, F@_1, F@_2, F@_3,
        true -> S3#{inserted_at => F@_8}
     end;
 dfp_read_field_def_event(Other, Z1, Z2, F@_1, F@_2,
-			 F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData) ->
+			 F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+			 TrUserData) ->
     dg_read_field_def_event(Other, Z1, Z2, F@_1, F@_2, F@_3,
-			    F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData).
+			    F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData).
 
 dg_read_field_def_event(<<1:1, X:7, Rest/binary>>, N,
 			Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-			TrUserData)
+			F@_9, TrUserData)
     when N < 32 - 7 ->
     dg_read_field_def_event(Rest, N + 7, X bsl N + Acc,
 			    F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-			    TrUserData);
+			    F@_9, TrUserData);
 dg_read_field_def_event(<<0:1, X:7, Rest/binary>>, N,
 			Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-			TrUserData) ->
+			F@_9, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
       10 ->
 	  d_field_event_event_id(Rest, 0, 0, F@_1, F@_2, F@_3,
-				 F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+				 F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+				 TrUserData);
       18 ->
 	  d_field_event_type(Rest, 0, 0, F@_1, F@_2, F@_3, F@_4,
-			     F@_5, F@_6, F@_7, F@_8, TrUserData);
+			     F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
       26 ->
 	  d_field_event_correlation(Rest, 0, 0, F@_1, F@_2, F@_3,
-				    F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+				    F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+				    TrUserData);
       34 ->
 	  d_field_event_causation(Rest, 0, 0, F@_1, F@_2, F@_3,
-				  F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+				  F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+				  TrUserData);
       42 ->
 	  d_field_event_data(Rest, 0, 0, F@_1, F@_2, F@_3, F@_4,
-			     F@_5, F@_6, F@_7, F@_8, TrUserData);
+			     F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
       50 ->
 	  d_field_event_metadata(Rest, 0, 0, F@_1, F@_2, F@_3,
-				 F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+				 F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+				 TrUserData);
       56 ->
 	  d_field_event_debug(Rest, 0, 0, F@_1, F@_2, F@_3, F@_4,
-			      F@_5, F@_6, F@_7, F@_8, TrUserData);
+			      F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
       66 ->
 	  d_field_event_inserted_at(Rest, 0, 0, F@_1, F@_2, F@_3,
-				    F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+				    F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+				    TrUserData);
+      74 ->
+	  d_field_event_ingest_id(Rest, 0, 0, F@_1, F@_2, F@_3,
+				  F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+				  TrUserData);
       _ ->
 	  case Key band 7 of
 	    0 ->
 		skip_varint_event(Rest, 0, 0, F@_1, F@_2, F@_3, F@_4,
-				  F@_5, F@_6, F@_7, F@_8, TrUserData);
+				  F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
 	    1 ->
 		skip_64_event(Rest, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5,
-			      F@_6, F@_7, F@_8, TrUserData);
+			      F@_6, F@_7, F@_8, F@_9, TrUserData);
 	    2 ->
 		skip_length_delimited_event(Rest, 0, 0, F@_1, F@_2,
 					    F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-					    TrUserData);
+					    F@_9, TrUserData);
 	    3 ->
 		skip_group_event(Rest, Key bsr 3, 0, F@_1, F@_2, F@_3,
-				 F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+				 F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+				 TrUserData);
 	    5 ->
 		skip_32_event(Rest, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5,
-			      F@_6, F@_7, F@_8, TrUserData)
+			      F@_6, F@_7, F@_8, F@_9, TrUserData)
 	  end
     end;
 dg_read_field_def_event(<<>>, 0, 0, F@_1, F@_2, F@_3,
-			F@_4, F@_5, F@_6, F@_7, F@_8, _) ->
+			F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, _) ->
     S1 = #{event_id => F@_1, type => F@_2,
-	   correlation => F@_3, causation => F@_4, debug => F@_7},
+	   correlation => F@_3, causation => F@_4, debug => F@_7,
+	   ingest_id => F@_9},
     S2 = if F@_5 == '$undef' -> S1;
 	    true -> S1#{data => F@_5}
 	 end,
@@ -1024,13 +1057,13 @@ dg_read_field_def_event(<<>>, 0, 0, F@_1, F@_2, F@_3,
 
 d_field_event_event_id(<<1:1, X:7, Rest/binary>>, N,
 		       Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-		       TrUserData)
+		       F@_9, TrUserData)
     when N < 57 ->
     d_field_event_event_id(Rest, N + 7, X bsl N + Acc, F@_1,
-			   F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			   F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			   TrUserData);
 d_field_event_event_id(<<0:1, X:7, Rest/binary>>, N,
-		       Acc, _, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+		       Acc, _, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 		       TrUserData) ->
     {NewFValue, RestF} = begin
 			   Len = X bsl N + Acc,
@@ -1038,16 +1071,18 @@ d_field_event_event_id(<<0:1, X:7, Rest/binary>>, N,
 			   {id(binary:copy(Bytes), TrUserData), Rest2}
 			 end,
     dfp_read_field_def_event(RestF, 0, 0, NewFValue, F@_2,
-			     F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData).
+			     F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+			     TrUserData).
 
 d_field_event_type(<<1:1, X:7, Rest/binary>>, N, Acc,
-		   F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+		   F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 		   TrUserData)
     when N < 57 ->
     d_field_event_type(Rest, N + 7, X bsl N + Acc, F@_1,
-		       F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+		       F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+		       TrUserData);
 d_field_event_type(<<0:1, X:7, Rest/binary>>, N, Acc,
-		   F@_1, _, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+		   F@_1, _, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 		   TrUserData) ->
     {NewFValue, RestF} = begin
 			   Len = X bsl N + Acc,
@@ -1055,36 +1090,37 @@ d_field_event_type(<<0:1, X:7, Rest/binary>>, N, Acc,
 			   {id(binary:copy(Bytes), TrUserData), Rest2}
 			 end,
     dfp_read_field_def_event(RestF, 0, 0, F@_1, NewFValue,
-			     F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData).
+			     F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+			     TrUserData).
 
 d_field_event_correlation(<<1:1, X:7, Rest/binary>>, N,
 			  Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-			  TrUserData)
+			  F@_9, TrUserData)
     when N < 57 ->
     d_field_event_correlation(Rest, N + 7, X bsl N + Acc,
 			      F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-			      TrUserData);
+			      F@_9, TrUserData);
 d_field_event_correlation(<<0:1, X:7, Rest/binary>>, N,
 			  Acc, F@_1, F@_2, _, F@_4, F@_5, F@_6, F@_7, F@_8,
-			  TrUserData) ->
+			  F@_9, TrUserData) ->
     {NewFValue, RestF} = begin
 			   Len = X bsl N + Acc,
 			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
 			   {id(binary:copy(Bytes), TrUserData), Rest2}
 			 end,
     dfp_read_field_def_event(RestF, 0, 0, F@_1, F@_2,
-			     NewFValue, F@_4, F@_5, F@_6, F@_7, F@_8,
+			     NewFValue, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			     TrUserData).
 
 d_field_event_causation(<<1:1, X:7, Rest/binary>>, N,
 			Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-			TrUserData)
+			F@_9, TrUserData)
     when N < 57 ->
     d_field_event_causation(Rest, N + 7, X bsl N + Acc,
 			    F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-			    TrUserData);
+			    F@_9, TrUserData);
 d_field_event_causation(<<0:1, X:7, Rest/binary>>, N,
-			Acc, F@_1, F@_2, F@_3, _, F@_5, F@_6, F@_7, F@_8,
+			Acc, F@_1, F@_2, F@_3, _, F@_5, F@_6, F@_7, F@_8, F@_9,
 			TrUserData) ->
     {NewFValue, RestF} = begin
 			   Len = X bsl N + Acc,
@@ -1092,16 +1128,18 @@ d_field_event_causation(<<0:1, X:7, Rest/binary>>, N,
 			   {id(binary:copy(Bytes), TrUserData), Rest2}
 			 end,
     dfp_read_field_def_event(RestF, 0, 0, F@_1, F@_2, F@_3,
-			     NewFValue, F@_5, F@_6, F@_7, F@_8, TrUserData).
+			     NewFValue, F@_5, F@_6, F@_7, F@_8, F@_9,
+			     TrUserData).
 
 d_field_event_data(<<1:1, X:7, Rest/binary>>, N, Acc,
-		   F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+		   F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 		   TrUserData)
     when N < 57 ->
     d_field_event_data(Rest, N + 7, X bsl N + Acc, F@_1,
-		       F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+		       F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+		       TrUserData);
 d_field_event_data(<<0:1, X:7, Rest/binary>>, N, Acc,
-		   F@_1, F@_2, F@_3, F@_4, Prev, F@_6, F@_7, F@_8,
+		   F@_1, F@_2, F@_3, F@_4, Prev, F@_6, F@_7, F@_8, F@_9,
 		   TrUserData) ->
     {NewFValue, RestF} = begin
 			   Len = X bsl N + Acc,
@@ -1115,18 +1153,18 @@ d_field_event_data(<<0:1, X:7, Rest/binary>>, N, Acc,
 				true ->
 				    merge_msg_value(Prev, NewFValue, TrUserData)
 			     end,
-			     F@_6, F@_7, F@_8, TrUserData).
+			     F@_6, F@_7, F@_8, F@_9, TrUserData).
 
 d_field_event_metadata(<<1:1, X:7, Rest/binary>>, N,
 		       Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-		       TrUserData)
+		       F@_9, TrUserData)
     when N < 57 ->
     d_field_event_metadata(Rest, N + 7, X bsl N + Acc, F@_1,
-			   F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			   F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 			   TrUserData);
 d_field_event_metadata(<<0:1, X:7, Rest/binary>>, N,
 		       Acc, F@_1, F@_2, F@_3, F@_4, F@_5, Prev, F@_7, F@_8,
-		       TrUserData) ->
+		       F@_9, TrUserData) ->
     {NewFValue, RestF} = begin
 			   Len = X bsl N + Acc,
 			   <<Bs:Len/binary, Rest2/binary>> = Rest,
@@ -1139,33 +1177,35 @@ d_field_event_metadata(<<0:1, X:7, Rest/binary>>, N,
 				true ->
 				    merge_msg_value(Prev, NewFValue, TrUserData)
 			     end,
-			     F@_7, F@_8, TrUserData).
+			     F@_7, F@_8, F@_9, TrUserData).
 
 d_field_event_debug(<<1:1, X:7, Rest/binary>>, N, Acc,
-		    F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+		    F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 		    TrUserData)
     when N < 57 ->
     d_field_event_debug(Rest, N + 7, X bsl N + Acc, F@_1,
-			F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData);
+			F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
+			TrUserData);
 d_field_event_debug(<<0:1, X:7, Rest/binary>>, N, Acc,
-		    F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, _, F@_8,
+		    F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, _, F@_8, F@_9,
 		    TrUserData) ->
     {NewFValue, RestF} = {id(X bsl N + Acc =/= 0,
 			     TrUserData),
 			  Rest},
     dfp_read_field_def_event(RestF, 0, 0, F@_1, F@_2, F@_3,
-			     F@_4, F@_5, F@_6, NewFValue, F@_8, TrUserData).
+			     F@_4, F@_5, F@_6, NewFValue, F@_8, F@_9,
+			     TrUserData).
 
 d_field_event_inserted_at(<<1:1, X:7, Rest/binary>>, N,
 			  Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-			  TrUserData)
+			  F@_9, TrUserData)
     when N < 57 ->
     d_field_event_inserted_at(Rest, N + 7, X bsl N + Acc,
 			      F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-			      TrUserData);
+			      F@_9, TrUserData);
 d_field_event_inserted_at(<<0:1, X:7, Rest/binary>>, N,
 			  Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, Prev,
-			  TrUserData) ->
+			  F@_9, TrUserData) ->
     {NewFValue, RestF} = begin
 			   Len = X bsl N + Acc,
 			   <<Bs:Len/binary, Rest2/binary>> = Rest,
@@ -1180,49 +1220,68 @@ d_field_event_inserted_at(<<0:1, X:7, Rest/binary>>, N,
 				    merge_msg_timestamp(Prev, NewFValue,
 							TrUserData)
 			     end,
+			     F@_9, TrUserData).
+
+d_field_event_ingest_id(<<1:1, X:7, Rest/binary>>, N,
+			Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			F@_9, TrUserData)
+    when N < 57 ->
+    d_field_event_ingest_id(Rest, N + 7, X bsl N + Acc,
+			    F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+			    F@_9, TrUserData);
+d_field_event_ingest_id(<<0:1, X:7, Rest/binary>>, N,
+			Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, _,
+			TrUserData) ->
+    {NewFValue, RestF} = begin
+			   Len = X bsl N + Acc,
+			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
+			   {id(binary:copy(Bytes), TrUserData), Rest2}
+			 end,
+    dfp_read_field_def_event(RestF, 0, 0, F@_1, F@_2, F@_3,
+			     F@_4, F@_5, F@_6, F@_7, F@_8, NewFValue,
 			     TrUserData).
 
 skip_varint_event(<<1:1, _:7, Rest/binary>>, Z1, Z2,
-		  F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+		  F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 		  TrUserData) ->
     skip_varint_event(Rest, Z1, Z2, F@_1, F@_2, F@_3, F@_4,
-		      F@_5, F@_6, F@_7, F@_8, TrUserData);
+		      F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData);
 skip_varint_event(<<0:1, _:7, Rest/binary>>, Z1, Z2,
-		  F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
+		  F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9,
 		  TrUserData) ->
     dfp_read_field_def_event(Rest, Z1, Z2, F@_1, F@_2, F@_3,
-			     F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData).
+			     F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData).
 
 skip_length_delimited_event(<<1:1, X:7, Rest/binary>>,
 			    N, Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7,
-			    F@_8, TrUserData)
+			    F@_8, F@_9, TrUserData)
     when N < 57 ->
     skip_length_delimited_event(Rest, N + 7, X bsl N + Acc,
 				F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8,
-				TrUserData);
+				F@_9, TrUserData);
 skip_length_delimited_event(<<0:1, X:7, Rest/binary>>,
 			    N, Acc, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7,
-			    F@_8, TrUserData) ->
+			    F@_8, F@_9, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
     dfp_read_field_def_event(Rest2, 0, 0, F@_1, F@_2, F@_3,
-			     F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData).
+			     F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData).
 
 skip_group_event(Bin, FNum, Z2, F@_1, F@_2, F@_3, F@_4,
-		 F@_5, F@_6, F@_7, F@_8, TrUserData) ->
+		 F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
     dfp_read_field_def_event(Rest, 0, Z2, F@_1, F@_2, F@_3,
-			     F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData).
+			     F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData).
 
 skip_32_event(<<_:32, Rest/binary>>, Z1, Z2, F@_1, F@_2,
-	      F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData) ->
+	      F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData) ->
     dfp_read_field_def_event(Rest, Z1, Z2, F@_1, F@_2, F@_3,
-			     F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData).
+			     F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData).
 
 skip_64_event(<<_:64, Rest/binary>>, Z1, Z2, F@_1, F@_2,
-	      F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData) ->
+	      F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData) ->
     dfp_read_field_def_event(Rest, Z1, Z2, F@_1, F@_2, F@_3,
-			     F@_4, F@_5, F@_6, F@_7, F@_8, TrUserData).
+			     F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, TrUserData).
 
 decode_msg_struct(Bin, TrUserData) ->
     dfp_read_field_def_struct(Bin, 0, 0,
@@ -2128,17 +2187,24 @@ merge_msg_event(PMsg, NMsg, TrUserData) ->
 	   {#{debug := PFdebug}, _} -> S7#{debug => PFdebug};
 	   _ -> S7
 	 end,
+    S9 = case {PMsg, NMsg} of
+	   {#{inserted_at := PFinserted_at},
+	    #{inserted_at := NFinserted_at}} ->
+	       S8#{inserted_at =>
+		       merge_msg_timestamp(PFinserted_at, NFinserted_at,
+					   TrUserData)};
+	   {_, #{inserted_at := NFinserted_at}} ->
+	       S8#{inserted_at => NFinserted_at};
+	   {#{inserted_at := PFinserted_at}, _} ->
+	       S8#{inserted_at => PFinserted_at};
+	   {_, _} -> S8
+	 end,
     case {PMsg, NMsg} of
-      {#{inserted_at := PFinserted_at},
-       #{inserted_at := NFinserted_at}} ->
-	  S8#{inserted_at =>
-		  merge_msg_timestamp(PFinserted_at, NFinserted_at,
-				      TrUserData)};
-      {_, #{inserted_at := NFinserted_at}} ->
-	  S8#{inserted_at => NFinserted_at};
-      {#{inserted_at := PFinserted_at}, _} ->
-	  S8#{inserted_at => PFinserted_at};
-      {_, _} -> S8
+      {_, #{ingest_id := NFingest_id}} ->
+	  S9#{ingest_id => NFingest_id};
+      {#{ingest_id := PFingest_id}, _} ->
+	  S9#{ingest_id => PFingest_id};
+      _ -> S9
     end.
 
 -compile({nowarn_unused_function,merge_msg_struct/3}).
@@ -2337,6 +2403,11 @@ v_msg_event(#{} = M, Path, TrUserData) ->
 	  v_msg_timestamp(F8, [inserted_at | Path], TrUserData);
       _ -> ok
     end,
+    case M of
+      #{ingest_id := F9} ->
+	  v_type_string(F9, [ingest_id | Path], TrUserData);
+      _ -> ok
+    end,
     lists:foreach(fun (event_id) -> ok;
 		      (type) -> ok;
 		      (correlation) -> ok;
@@ -2345,6 +2416,7 @@ v_msg_event(#{} = M, Path, TrUserData) ->
 		      (metadata) -> ok;
 		      (debug) -> ok;
 		      (inserted_at) -> ok;
+		      (ingest_id) -> ok;
 		      (OtherKey) ->
 			  mk_type_error({extraneous_key, OtherKey}, M, Path)
 		  end,
@@ -2710,7 +2782,9 @@ get_msg_defs() ->
 	 occurrence => optional, opts => []},
        #{name => inserted_at, fnum => 8, rnum => 9,
 	 type => {msg, timestamp}, occurrence => optional,
-	 opts => []}]},
+	 opts => []},
+       #{name => ingest_id, fnum => 9, rnum => 10,
+	 type => string, occurrence => optional, opts => []}]},
      {{msg, struct},
       [#{name => fields, fnum => 1, rnum => 2,
 	 type => {map, string, {msg, value}},
@@ -2803,7 +2877,9 @@ find_msg_def(event) ->
        occurrence => optional, opts => []},
      #{name => inserted_at, fnum => 8, rnum => 9,
        type => {msg, timestamp}, occurrence => optional,
-       opts => []}];
+       opts => []},
+     #{name => ingest_id, fnum => 9, rnum => 10,
+       type => string, occurrence => optional, opts => []}];
 find_msg_def(struct) ->
     [#{name => fields, fnum => 1, rnum => 2,
        type => {map, string, {msg, value}},
@@ -3058,9 +3134,9 @@ get_protos_by_pkg_name_as_fqbin(E) ->
 
 
 descriptor() ->
-    <<10, 174, 3, 10, 19, 105, 98, 101, 110, 116, 111, 47,
+    <<10, 193, 3, 10, 19, 105, 98, 101, 110, 116, 111, 47,
       105, 98, 101, 110, 116, 111, 46, 112, 114, 111, 116,
-      111, 18, 6, 105, 98, 101, 110, 116, 111, 34, 223, 1, 10,
+      111, 18, 6, 105, 98, 101, 110, 116, 111, 34, 242, 1, 10,
       5, 69, 118, 101, 110, 116, 18, 16, 10, 8, 101, 118, 101,
       110, 116, 95, 105, 100, 24, 1, 32, 1, 40, 9, 18, 12, 10,
       4, 116, 121, 112, 101, 24, 2, 32, 1, 40, 9, 18, 19, 10,
@@ -3078,76 +3154,77 @@ descriptor() ->
       116, 101, 100, 95, 97, 116, 24, 8, 32, 1, 40, 11, 50,
       26, 46, 103, 111, 111, 103, 108, 101, 46, 112, 114, 111,
       116, 111, 98, 117, 102, 46, 84, 105, 109, 101, 115, 116,
-      97, 109, 112, 34, 61, 10, 13, 82, 101, 112, 108, 97,
-      121, 82, 101, 113, 117, 101, 115, 116, 18, 14, 10, 6,
-      116, 111, 112, 105, 99, 115, 24, 1, 32, 3, 40, 9, 18,
-      13, 10, 5, 97, 102, 116, 101, 114, 24, 2, 32, 1, 40, 4,
-      18, 13, 10, 5, 108, 105, 109, 105, 116, 24, 3, 32, 1,
-      40, 4, 34, 34, 10, 16, 83, 117, 98, 115, 99, 114, 105,
-      98, 101, 82, 101, 113, 117, 101, 115, 116, 18, 14, 10,
-      6, 116, 111, 112, 105, 99, 115, 24, 1, 32, 3, 40, 9, 50,
-      66, 10, 6, 73, 98, 101, 110, 116, 111, 18, 56, 10, 9,
-      83, 117, 98, 115, 99, 114, 105, 98, 101, 18, 24, 46,
-      105, 98, 101, 110, 116, 111, 46, 83, 117, 98, 115, 99,
-      114, 105, 98, 101, 82, 101, 113, 117, 101, 115, 116, 26,
-      13, 46, 105, 98, 101, 110, 116, 111, 46, 69, 118, 101,
-      110, 116, 40, 0, 48, 0, 98, 6, 112, 114, 111, 116, 111,
-      51, 10, 135, 4, 10, 28, 103, 111, 111, 103, 108, 101,
-      47, 112, 114, 111, 116, 111, 98, 117, 102, 47, 115, 116,
-      114, 117, 99, 116, 46, 112, 114, 111, 116, 111, 18, 15,
+      97, 109, 112, 18, 17, 10, 9, 105, 110, 103, 101, 115,
+      116, 95, 105, 100, 24, 9, 32, 1, 40, 9, 34, 61, 10, 13,
+      82, 101, 112, 108, 97, 121, 82, 101, 113, 117, 101, 115,
+      116, 18, 14, 10, 6, 116, 111, 112, 105, 99, 115, 24, 1,
+      32, 3, 40, 9, 18, 13, 10, 5, 97, 102, 116, 101, 114, 24,
+      2, 32, 1, 40, 4, 18, 13, 10, 5, 108, 105, 109, 105, 116,
+      24, 3, 32, 1, 40, 4, 34, 34, 10, 16, 83, 117, 98, 115,
+      99, 114, 105, 98, 101, 82, 101, 113, 117, 101, 115, 116,
+      18, 14, 10, 6, 116, 111, 112, 105, 99, 115, 24, 1, 32,
+      3, 40, 9, 50, 66, 10, 6, 73, 98, 101, 110, 116, 111, 18,
+      56, 10, 9, 83, 117, 98, 115, 99, 114, 105, 98, 101, 18,
+      24, 46, 105, 98, 101, 110, 116, 111, 46, 83, 117, 98,
+      115, 99, 114, 105, 98, 101, 82, 101, 113, 117, 101, 115,
+      116, 26, 13, 46, 105, 98, 101, 110, 116, 111, 46, 69,
+      118, 101, 110, 116, 40, 0, 48, 0, 98, 6, 112, 114, 111,
+      116, 111, 51, 10, 135, 4, 10, 28, 103, 111, 111, 103,
+      108, 101, 47, 112, 114, 111, 116, 111, 98, 117, 102, 47,
+      115, 116, 114, 117, 99, 116, 46, 112, 114, 111, 116,
+      111, 18, 15, 103, 111, 111, 103, 108, 101, 46, 112, 114,
+      111, 116, 111, 98, 117, 102, 34, 51, 10, 9, 76, 105,
+      115, 116, 86, 97, 108, 117, 101, 18, 38, 10, 6, 118, 97,
+      108, 117, 101, 115, 24, 1, 32, 3, 40, 11, 50, 22, 46,
       103, 111, 111, 103, 108, 101, 46, 112, 114, 111, 116,
-      111, 98, 117, 102, 34, 51, 10, 9, 76, 105, 115, 116, 86,
-      97, 108, 117, 101, 18, 38, 10, 6, 118, 97, 108, 117,
-      101, 115, 24, 1, 32, 3, 40, 11, 50, 22, 46, 103, 111,
+      111, 98, 117, 102, 46, 86, 97, 108, 117, 101, 34, 60,
+      10, 6, 83, 116, 114, 117, 99, 116, 18, 50, 10, 6, 102,
+      105, 101, 108, 100, 115, 24, 1, 32, 3, 40, 11, 50, 34,
+      46, 103, 111, 111, 103, 108, 101, 46, 112, 114, 111,
+      116, 111, 98, 117, 102, 46, 77, 97, 112, 70, 105, 101,
+      108, 100, 69, 110, 116, 114, 121, 95, 49, 95, 49, 34,
+      234, 1, 10, 5, 86, 97, 108, 117, 101, 18, 48, 10, 10,
+      110, 117, 108, 108, 95, 118, 97, 108, 117, 101, 24, 1,
+      32, 1, 40, 14, 50, 26, 46, 103, 111, 111, 103, 108, 101,
+      46, 112, 114, 111, 116, 111, 98, 117, 102, 46, 78, 117,
+      108, 108, 86, 97, 108, 117, 101, 72, 0, 18, 22, 10, 12,
+      110, 117, 109, 98, 101, 114, 95, 118, 97, 108, 117, 101,
+      24, 2, 32, 1, 40, 1, 72, 0, 18, 22, 10, 12, 115, 116,
+      114, 105, 110, 103, 95, 118, 97, 108, 117, 101, 24, 3,
+      32, 1, 40, 9, 72, 0, 18, 20, 10, 10, 98, 111, 111, 108,
+      95, 118, 97, 108, 117, 101, 24, 4, 32, 1, 40, 8, 72, 0,
+      18, 47, 10, 12, 115, 116, 114, 117, 99, 116, 95, 118,
+      97, 108, 117, 101, 24, 5, 32, 1, 40, 11, 50, 23, 46,
+      103, 111, 111, 103, 108, 101, 46, 112, 114, 111, 116,
+      111, 98, 117, 102, 46, 83, 116, 114, 117, 99, 116, 72,
+      0, 18, 48, 10, 10, 108, 105, 115, 116, 95, 118, 97, 108,
+      117, 101, 24, 6, 32, 1, 40, 11, 50, 26, 46, 103, 111,
       111, 103, 108, 101, 46, 112, 114, 111, 116, 111, 98,
-      117, 102, 46, 86, 97, 108, 117, 101, 34, 60, 10, 6, 83,
-      116, 114, 117, 99, 116, 18, 50, 10, 6, 102, 105, 101,
-      108, 100, 115, 24, 1, 32, 3, 40, 11, 50, 34, 46, 103,
-      111, 111, 103, 108, 101, 46, 112, 114, 111, 116, 111,
-      98, 117, 102, 46, 77, 97, 112, 70, 105, 101, 108, 100,
-      69, 110, 116, 114, 121, 95, 49, 95, 49, 34, 234, 1, 10,
-      5, 86, 97, 108, 117, 101, 18, 48, 10, 10, 110, 117, 108,
-      108, 95, 118, 97, 108, 117, 101, 24, 1, 32, 1, 40, 14,
-      50, 26, 46, 103, 111, 111, 103, 108, 101, 46, 112, 114,
-      111, 116, 111, 98, 117, 102, 46, 78, 117, 108, 108, 86,
-      97, 108, 117, 101, 72, 0, 18, 22, 10, 12, 110, 117, 109,
-      98, 101, 114, 95, 118, 97, 108, 117, 101, 24, 2, 32, 1,
-      40, 1, 72, 0, 18, 22, 10, 12, 115, 116, 114, 105, 110,
-      103, 95, 118, 97, 108, 117, 101, 24, 3, 32, 1, 40, 9,
-      72, 0, 18, 20, 10, 10, 98, 111, 111, 108, 95, 118, 97,
-      108, 117, 101, 24, 4, 32, 1, 40, 8, 72, 0, 18, 47, 10,
-      12, 115, 116, 114, 117, 99, 116, 95, 118, 97, 108, 117,
-      101, 24, 5, 32, 1, 40, 11, 50, 23, 46, 103, 111, 111,
-      103, 108, 101, 46, 112, 114, 111, 116, 111, 98, 117,
-      102, 46, 83, 116, 114, 117, 99, 116, 72, 0, 18, 48, 10,
-      10, 108, 105, 115, 116, 95, 118, 97, 108, 117, 101, 24,
-      6, 32, 1, 40, 11, 50, 26, 46, 103, 111, 111, 103, 108,
-      101, 46, 112, 114, 111, 116, 111, 98, 117, 102, 46, 76,
-      105, 115, 116, 86, 97, 108, 117, 101, 72, 0, 66, 6, 10,
-      4, 107, 105, 110, 100, 34, 81, 10, 17, 77, 97, 112, 70,
-      105, 101, 108, 100, 69, 110, 116, 114, 121, 95, 49, 95,
-      49, 18, 11, 10, 3, 107, 101, 121, 24, 1, 32, 2, 40, 9,
-      18, 37, 10, 5, 118, 97, 108, 117, 101, 24, 2, 32, 2, 40,
-      11, 50, 22, 46, 103, 111, 111, 103, 108, 101, 46, 112,
-      114, 111, 116, 111, 98, 117, 102, 46, 86, 97, 108, 117,
-      101, 58, 8, 8, 0, 16, 0, 24, 0, 56, 1, 42, 27, 10, 9,
-      78, 117, 108, 108, 86, 97, 108, 117, 101, 18, 14, 10,
-      10, 78, 85, 76, 76, 95, 86, 65, 76, 85, 69, 16, 0, 98,
-      6, 112, 114, 111, 116, 111, 51, 10, 103, 10, 31, 103,
-      111, 111, 103, 108, 101, 47, 112, 114, 111, 116, 111,
-      98, 117, 102, 47, 116, 105, 109, 101, 115, 116, 97, 109,
-      112, 46, 112, 114, 111, 116, 111, 18, 15, 103, 111, 111,
-      103, 108, 101, 46, 112, 114, 111, 116, 111, 98, 117,
-      102, 34, 43, 10, 9, 84, 105, 109, 101, 115, 116, 97,
-      109, 112, 18, 15, 10, 7, 115, 101, 99, 111, 110, 100,
-      115, 24, 1, 32, 1, 40, 3, 18, 13, 10, 5, 110, 97, 110,
-      111, 115, 24, 2, 32, 1, 40, 5, 98, 6, 112, 114, 111,
-      116, 111, 51>>.
+      117, 102, 46, 76, 105, 115, 116, 86, 97, 108, 117, 101,
+      72, 0, 66, 6, 10, 4, 107, 105, 110, 100, 34, 81, 10, 17,
+      77, 97, 112, 70, 105, 101, 108, 100, 69, 110, 116, 114,
+      121, 95, 49, 95, 49, 18, 11, 10, 3, 107, 101, 121, 24,
+      1, 32, 2, 40, 9, 18, 37, 10, 5, 118, 97, 108, 117, 101,
+      24, 2, 32, 2, 40, 11, 50, 22, 46, 103, 111, 111, 103,
+      108, 101, 46, 112, 114, 111, 116, 111, 98, 117, 102, 46,
+      86, 97, 108, 117, 101, 58, 8, 8, 0, 16, 0, 24, 0, 56, 1,
+      42, 27, 10, 9, 78, 117, 108, 108, 86, 97, 108, 117, 101,
+      18, 14, 10, 10, 78, 85, 76, 76, 95, 86, 65, 76, 85, 69,
+      16, 0, 98, 6, 112, 114, 111, 116, 111, 51, 10, 103, 10,
+      31, 103, 111, 111, 103, 108, 101, 47, 112, 114, 111,
+      116, 111, 98, 117, 102, 47, 116, 105, 109, 101, 115,
+      116, 97, 109, 112, 46, 112, 114, 111, 116, 111, 18, 15,
+      103, 111, 111, 103, 108, 101, 46, 112, 114, 111, 116,
+      111, 98, 117, 102, 34, 43, 10, 9, 84, 105, 109, 101,
+      115, 116, 97, 109, 112, 18, 15, 10, 7, 115, 101, 99,
+      111, 110, 100, 115, 24, 1, 32, 1, 40, 3, 18, 13, 10, 5,
+      110, 97, 110, 111, 115, 24, 2, 32, 1, 40, 5, 98, 6, 112,
+      114, 111, 116, 111, 51>>.
 
 descriptor("ibento") ->
     <<10, 19, 105, 98, 101, 110, 116, 111, 47, 105, 98, 101,
       110, 116, 111, 46, 112, 114, 111, 116, 111, 18, 6, 105,
-      98, 101, 110, 116, 111, 34, 223, 1, 10, 5, 69, 118, 101,
+      98, 101, 110, 116, 111, 34, 242, 1, 10, 5, 69, 118, 101,
       110, 116, 18, 16, 10, 8, 101, 118, 101, 110, 116, 95,
       105, 100, 24, 1, 32, 1, 40, 9, 18, 12, 10, 4, 116, 121,
       112, 101, 24, 2, 32, 1, 40, 9, 18, 19, 10, 11, 99, 111,
@@ -3165,20 +3242,22 @@ descriptor("ibento") ->
       100, 95, 97, 116, 24, 8, 32, 1, 40, 11, 50, 26, 46, 103,
       111, 111, 103, 108, 101, 46, 112, 114, 111, 116, 111,
       98, 117, 102, 46, 84, 105, 109, 101, 115, 116, 97, 109,
-      112, 34, 61, 10, 13, 82, 101, 112, 108, 97, 121, 82,
-      101, 113, 117, 101, 115, 116, 18, 14, 10, 6, 116, 111,
-      112, 105, 99, 115, 24, 1, 32, 3, 40, 9, 18, 13, 10, 5,
-      97, 102, 116, 101, 114, 24, 2, 32, 1, 40, 4, 18, 13, 10,
-      5, 108, 105, 109, 105, 116, 24, 3, 32, 1, 40, 4, 34, 34,
-      10, 16, 83, 117, 98, 115, 99, 114, 105, 98, 101, 82,
-      101, 113, 117, 101, 115, 116, 18, 14, 10, 6, 116, 111,
-      112, 105, 99, 115, 24, 1, 32, 3, 40, 9, 50, 66, 10, 6,
-      73, 98, 101, 110, 116, 111, 18, 56, 10, 9, 83, 117, 98,
-      115, 99, 114, 105, 98, 101, 18, 24, 46, 105, 98, 101,
-      110, 116, 111, 46, 83, 117, 98, 115, 99, 114, 105, 98,
-      101, 82, 101, 113, 117, 101, 115, 116, 26, 13, 46, 105,
-      98, 101, 110, 116, 111, 46, 69, 118, 101, 110, 116, 40,
-      0, 48, 0, 98, 6, 112, 114, 111, 116, 111, 51>>;
+      112, 18, 17, 10, 9, 105, 110, 103, 101, 115, 116, 95,
+      105, 100, 24, 9, 32, 1, 40, 9, 34, 61, 10, 13, 82, 101,
+      112, 108, 97, 121, 82, 101, 113, 117, 101, 115, 116, 18,
+      14, 10, 6, 116, 111, 112, 105, 99, 115, 24, 1, 32, 3,
+      40, 9, 18, 13, 10, 5, 97, 102, 116, 101, 114, 24, 2, 32,
+      1, 40, 4, 18, 13, 10, 5, 108, 105, 109, 105, 116, 24, 3,
+      32, 1, 40, 4, 34, 34, 10, 16, 83, 117, 98, 115, 99, 114,
+      105, 98, 101, 82, 101, 113, 117, 101, 115, 116, 18, 14,
+      10, 6, 116, 111, 112, 105, 99, 115, 24, 1, 32, 3, 40, 9,
+      50, 66, 10, 6, 73, 98, 101, 110, 116, 111, 18, 56, 10,
+      9, 83, 117, 98, 115, 99, 114, 105, 98, 101, 18, 24, 46,
+      105, 98, 101, 110, 116, 111, 46, 83, 117, 98, 115, 99,
+      114, 105, 98, 101, 82, 101, 113, 117, 101, 115, 116, 26,
+      13, 46, 105, 98, 101, 110, 116, 111, 46, 69, 118, 101,
+      110, 116, 40, 0, 48, 0, 98, 6, 112, 114, 111, 116, 111,
+      51>>;
 descriptor("struct") ->
     <<10, 28, 103, 111, 111, 103, 108, 101, 47, 112, 114,
       111, 116, 111, 98, 117, 102, 47, 115, 116, 114, 117, 99,

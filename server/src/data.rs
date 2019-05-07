@@ -11,6 +11,7 @@ use uuid::Uuid;
 #[derive(Debug, Queryable)]
 pub struct Event {
     pub id: Uuid,
+    pub ingest_id: Uuid,
     pub type_: String,
     pub correlation: Option<String>,
     pub causation: Option<String>,
@@ -24,6 +25,7 @@ impl From<Event> for crate::grpc::Event {
     fn from(event: Event) -> Self {
         Self {
             event_id: event.id.to_string().to_owned(),
+            ingest_id: event.ingest_id.to_string().to_owned(),
             r#type: event.type_,
             correlation: event.correlation.unwrap_or(String::from("")),
             causation: event.causation.unwrap_or(String::from("")),

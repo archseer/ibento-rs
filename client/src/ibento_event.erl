@@ -17,8 +17,9 @@
 '__struct__'() ->
 	#{
 		'__struct__' => 'Elixir.Ibento.Client.Event',
-                event_id => nil,
-                type => nil,
+		event_id => nil,
+		ingest_id => nil,
+		type => nil,
 		causation => nil,
 		correlation => nil,
 		data => nil,

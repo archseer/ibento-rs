@@ -3,6 +3,7 @@
 table! {
     events (id) {
         id -> Uuid,
+        ingest_id -> Uuid,
         #[sql_name = "type"]
         type_ -> Text,
         correlation -> Nullable<Text>,
@@ -11,6 +12,7 @@ table! {
         metadata -> Jsonb,
         debug -> Bool,
         inserted_at -> Timestamp,
+        // vclock -> Int8,
     }
 }
 
