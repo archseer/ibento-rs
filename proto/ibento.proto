@@ -30,11 +30,13 @@ service Ibento {
 
 message SubscribeRequest {
   repeated string topics = 1;
+  string after = 2;
+  uint64 limit = 3;
 }
 
 message ReplayRequest {
   repeated string topics = 1;
-  uint64 after = 2;
+  string after = 2;
   uint64 limit = 3;
 }
 

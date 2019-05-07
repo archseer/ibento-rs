@@ -53,12 +53,14 @@
 
 %% message types
 -type subscribe_request() ::
-      #{topics                  => [iodata()]       % = 1
+      #{topics                  => [iodata()],      % = 1
+        'after'                 => iodata(),        % = 2
+        limit                   => non_neg_integer() % = 3, 32 bits
        }.
 
 -type replay_request() ::
       #{topics                  => [iodata()],      % = 1
-        'after'                 => non_neg_integer(), % = 2, 32 bits
+        'after'                 => iodata(),        % = 2
         limit                   => non_neg_integer() % = 3, 32 bits
        }.
 
@@ -130,14 +132,36 @@ encode_msg_subscribe_request(Msg, TrUserData) ->
 
 encode_msg_subscribe_request(#{} = M, Bin,
 			     TrUserData) ->
+    B1 = case M of
+	   #{topics := F1} ->
+	       TrF1 = id(F1, TrUserData),
+	       if TrF1 == [] -> Bin;
+		  true ->
+		      e_field_subscribe_request_topics(TrF1, Bin, TrUserData)
+	       end;
+	   _ -> Bin
+	 end,
+    B2 = case M of
+	   #{'after' := F2} ->
+	       begin
+		 TrF2 = id(F2, TrUserData),
+		 case is_empty_string(TrF2) of
+		   true -> B1;
+		   false ->
+		       e_type_string(TrF2, <<B1/binary, 18>>, TrUserData)
+		 end
+	       end;
+	   _ -> B1
+	 end,
     case M of
-      #{topics := F1} ->
-	  TrF1 = id(F1, TrUserData),
-	  if TrF1 == [] -> Bin;
-	     true ->
-		 e_field_subscribe_request_topics(TrF1, Bin, TrUserData)
+      #{limit := F3} ->
+	  begin
+	    TrF3 = id(F3, TrUserData),
+	    if TrF3 =:= 0 -> B2;
+	       true -> e_varint(TrF3, <<B2/binary, 24>>, TrUserData)
+	    end
 	  end;
-      _ -> Bin
+      _ -> B2
     end.
 
 encode_msg_replay_request(Msg, TrUserData) ->
@@ -158,8 +182,10 @@ encode_msg_replay_request(#{} = M, Bin, TrUserData) ->
 	   #{'after' := F2} ->
 	       begin
 		 TrF2 = id(F2, TrUserData),
-		 if TrF2 =:= 0 -> B1;
-		    true -> e_varint(TrF2, <<B1/binary, 16>>, TrUserData)
+		 case is_empty_string(TrF2) of
+		   true -> B1;
+		   false ->
+		       e_type_string(TrF2, <<B1/binary, 18>>, TrUserData)
 		 end
 	       end;
 	   _ -> B1
@@ -641,65 +667,90 @@ decode_msg_2_doit(timestamp, Bin, TrUserData) ->
 
 decode_msg_subscribe_request(Bin, TrUserData) ->
     dfp_read_field_def_subscribe_request(Bin, 0, 0,
-					 id([], TrUserData), TrUserData).
+					 id([], TrUserData),
+					 id(<<>>, TrUserData),
+					 id(0, TrUserData), TrUserData).
 
 dfp_read_field_def_subscribe_request(<<10,
 				       Rest/binary>>,
-				     Z1, Z2, F@_1, TrUserData) ->
+				     Z1, Z2, F@_1, F@_2, F@_3, TrUserData) ->
     d_field_subscribe_request_topics(Rest, Z1, Z2, F@_1,
-				     TrUserData);
+				     F@_2, F@_3, TrUserData);
+dfp_read_field_def_subscribe_request(<<18,
+				       Rest/binary>>,
+				     Z1, Z2, F@_1, F@_2, F@_3, TrUserData) ->
+    d_field_subscribe_request_after(Rest, Z1, Z2, F@_1,
+				    F@_2, F@_3, TrUserData);
+dfp_read_field_def_subscribe_request(<<24,
+				       Rest/binary>>,
+				     Z1, Z2, F@_1, F@_2, F@_3, TrUserData) ->
+    d_field_subscribe_request_limit(Rest, Z1, Z2, F@_1,
+				    F@_2, F@_3, TrUserData);
 dfp_read_field_def_subscribe_request(<<>>, 0, 0, R1,
-				     TrUserData) ->
-    #{topics => lists_reverse(R1, TrUserData)};
+				     F@_2, F@_3, TrUserData) ->
+    #{topics => lists_reverse(R1, TrUserData),
+      'after' => F@_2, limit => F@_3};
 dfp_read_field_def_subscribe_request(Other, Z1, Z2,
-				     F@_1, TrUserData) ->
+				     F@_1, F@_2, F@_3, TrUserData) ->
     dg_read_field_def_subscribe_request(Other, Z1, Z2, F@_1,
-					TrUserData).
+					F@_2, F@_3, TrUserData).
 
 dg_read_field_def_subscribe_request(<<1:1, X:7,
 				      Rest/binary>>,
-				    N, Acc, F@_1, TrUserData)
+				    N, Acc, F@_1, F@_2, F@_3, TrUserData)
     when N < 32 - 7 ->
     dg_read_field_def_subscribe_request(Rest, N + 7,
-					X bsl N + Acc, F@_1, TrUserData);
+					X bsl N + Acc, F@_1, F@_2, F@_3,
+					TrUserData);
 dg_read_field_def_subscribe_request(<<0:1, X:7,
 				      Rest/binary>>,
-				    N, Acc, F@_1, TrUserData) ->
+				    N, Acc, F@_1, F@_2, F@_3, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
       10 ->
-	  d_field_subscribe_request_topics(Rest, 0, 0, F@_1,
-					   TrUserData);
+	  d_field_subscribe_request_topics(Rest, 0, 0, F@_1, F@_2,
+					   F@_3, TrUserData);
+      18 ->
+	  d_field_subscribe_request_after(Rest, 0, 0, F@_1, F@_2,
+					  F@_3, TrUserData);
+      24 ->
+	  d_field_subscribe_request_limit(Rest, 0, 0, F@_1, F@_2,
+					  F@_3, TrUserData);
       _ ->
 	  case Key band 7 of
 	    0 ->
-		skip_varint_subscribe_request(Rest, 0, 0, F@_1,
-					      TrUserData);
+		skip_varint_subscribe_request(Rest, 0, 0, F@_1, F@_2,
+					      F@_3, TrUserData);
 	    1 ->
-		skip_64_subscribe_request(Rest, 0, 0, F@_1, TrUserData);
+		skip_64_subscribe_request(Rest, 0, 0, F@_1, F@_2, F@_3,
+					  TrUserData);
 	    2 ->
 		skip_length_delimited_subscribe_request(Rest, 0, 0,
-							F@_1, TrUserData);
+							F@_1, F@_2, F@_3,
+							TrUserData);
 	    3 ->
 		skip_group_subscribe_request(Rest, Key bsr 3, 0, F@_1,
-					     TrUserData);
+					     F@_2, F@_3, TrUserData);
 	    5 ->
-		skip_32_subscribe_request(Rest, 0, 0, F@_1, TrUserData)
+		skip_32_subscribe_request(Rest, 0, 0, F@_1, F@_2, F@_3,
+					  TrUserData)
 	  end
     end;
 dg_read_field_def_subscribe_request(<<>>, 0, 0, R1,
-				    TrUserData) ->
-    #{topics => lists_reverse(R1, TrUserData)}.
+				    F@_2, F@_3, TrUserData) ->
+    #{topics => lists_reverse(R1, TrUserData),
+      'after' => F@_2, limit => F@_3}.
 
 d_field_subscribe_request_topics(<<1:1, X:7,
 				   Rest/binary>>,
-				 N, Acc, F@_1, TrUserData)
+				 N, Acc, F@_1, F@_2, F@_3, TrUserData)
     when N < 57 ->
     d_field_subscribe_request_topics(Rest, N + 7,
-				     X bsl N + Acc, F@_1, TrUserData);
+				     X bsl N + Acc, F@_1, F@_2, F@_3,
+				     TrUserData);
 d_field_subscribe_request_topics(<<0:1, X:7,
 				   Rest/binary>>,
-				 N, Acc, Prev, TrUserData) ->
+				 N, Acc, Prev, F@_2, F@_3, TrUserData) ->
     {NewFValue, RestF} = begin
 			   Len = X bsl N + Acc,
 			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
@@ -707,57 +758,91 @@ d_field_subscribe_request_topics(<<0:1, X:7,
 			 end,
     dfp_read_field_def_subscribe_request(RestF, 0, 0,
 					 cons(NewFValue, Prev, TrUserData),
-					 TrUserData).
+					 F@_2, F@_3, TrUserData).
+
+d_field_subscribe_request_after(<<1:1, X:7,
+				  Rest/binary>>,
+				N, Acc, F@_1, F@_2, F@_3, TrUserData)
+    when N < 57 ->
+    d_field_subscribe_request_after(Rest, N + 7,
+				    X bsl N + Acc, F@_1, F@_2, F@_3,
+				    TrUserData);
+d_field_subscribe_request_after(<<0:1, X:7,
+				  Rest/binary>>,
+				N, Acc, F@_1, _, F@_3, TrUserData) ->
+    {NewFValue, RestF} = begin
+			   Len = X bsl N + Acc,
+			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
+			   {id(binary:copy(Bytes), TrUserData), Rest2}
+			 end,
+    dfp_read_field_def_subscribe_request(RestF, 0, 0, F@_1,
+					 NewFValue, F@_3, TrUserData).
+
+d_field_subscribe_request_limit(<<1:1, X:7,
+				  Rest/binary>>,
+				N, Acc, F@_1, F@_2, F@_3, TrUserData)
+    when N < 57 ->
+    d_field_subscribe_request_limit(Rest, N + 7,
+				    X bsl N + Acc, F@_1, F@_2, F@_3,
+				    TrUserData);
+d_field_subscribe_request_limit(<<0:1, X:7,
+				  Rest/binary>>,
+				N, Acc, F@_1, F@_2, _, TrUserData) ->
+    {NewFValue, RestF} = {id(X bsl N + Acc, TrUserData),
+			  Rest},
+    dfp_read_field_def_subscribe_request(RestF, 0, 0, F@_1,
+					 F@_2, NewFValue, TrUserData).
 
 skip_varint_subscribe_request(<<1:1, _:7, Rest/binary>>,
-			      Z1, Z2, F@_1, TrUserData) ->
-    skip_varint_subscribe_request(Rest, Z1, Z2, F@_1,
-				  TrUserData);
+			      Z1, Z2, F@_1, F@_2, F@_3, TrUserData) ->
+    skip_varint_subscribe_request(Rest, Z1, Z2, F@_1, F@_2,
+				  F@_3, TrUserData);
 skip_varint_subscribe_request(<<0:1, _:7, Rest/binary>>,
-			      Z1, Z2, F@_1, TrUserData) ->
+			      Z1, Z2, F@_1, F@_2, F@_3, TrUserData) ->
     dfp_read_field_def_subscribe_request(Rest, Z1, Z2, F@_1,
-					 TrUserData).
+					 F@_2, F@_3, TrUserData).
 
 skip_length_delimited_subscribe_request(<<1:1, X:7,
 					  Rest/binary>>,
-					N, Acc, F@_1, TrUserData)
+					N, Acc, F@_1, F@_2, F@_3, TrUserData)
     when N < 57 ->
     skip_length_delimited_subscribe_request(Rest, N + 7,
-					    X bsl N + Acc, F@_1, TrUserData);
+					    X bsl N + Acc, F@_1, F@_2, F@_3,
+					    TrUserData);
 skip_length_delimited_subscribe_request(<<0:1, X:7,
 					  Rest/binary>>,
-					N, Acc, F@_1, TrUserData) ->
+					N, Acc, F@_1, F@_2, F@_3, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
     dfp_read_field_def_subscribe_request(Rest2, 0, 0, F@_1,
-					 TrUserData).
+					 F@_2, F@_3, TrUserData).
 
-skip_group_subscribe_request(Bin, FNum, Z2, F@_1,
-			     TrUserData) ->
+skip_group_subscribe_request(Bin, FNum, Z2, F@_1, F@_2,
+			     F@_3, TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
     dfp_read_field_def_subscribe_request(Rest, 0, Z2, F@_1,
-					 TrUserData).
+					 F@_2, F@_3, TrUserData).
 
 skip_32_subscribe_request(<<_:32, Rest/binary>>, Z1, Z2,
-			  F@_1, TrUserData) ->
+			  F@_1, F@_2, F@_3, TrUserData) ->
     dfp_read_field_def_subscribe_request(Rest, Z1, Z2, F@_1,
-					 TrUserData).
+					 F@_2, F@_3, TrUserData).
 
 skip_64_subscribe_request(<<_:64, Rest/binary>>, Z1, Z2,
-			  F@_1, TrUserData) ->
+			  F@_1, F@_2, F@_3, TrUserData) ->
     dfp_read_field_def_subscribe_request(Rest, Z1, Z2, F@_1,
-					 TrUserData).
+					 F@_2, F@_3, TrUserData).
 
 decode_msg_replay_request(Bin, TrUserData) ->
     dfp_read_field_def_replay_request(Bin, 0, 0,
-				      id([], TrUserData), id(0, TrUserData),
+				      id([], TrUserData), id(<<>>, TrUserData),
 				      id(0, TrUserData), TrUserData).
 
 dfp_read_field_def_replay_request(<<10, Rest/binary>>,
 				  Z1, Z2, F@_1, F@_2, F@_3, TrUserData) ->
     d_field_replay_request_topics(Rest, Z1, Z2, F@_1, F@_2,
 				  F@_3, TrUserData);
-dfp_read_field_def_replay_request(<<16, Rest/binary>>,
+dfp_read_field_def_replay_request(<<18, Rest/binary>>,
 				  Z1, Z2, F@_1, F@_2, F@_3, TrUserData) ->
     d_field_replay_request_after(Rest, Z1, Z2, F@_1, F@_2,
 				 F@_3, TrUserData);
@@ -789,7 +874,7 @@ dg_read_field_def_replay_request(<<0:1, X:7,
       10 ->
 	  d_field_replay_request_topics(Rest, 0, 0, F@_1, F@_2,
 					F@_3, TrUserData);
-      16 ->
+      18 ->
 	  d_field_replay_request_after(Rest, 0, 0, F@_1, F@_2,
 				       F@_3, TrUserData);
       24 ->
@@ -842,8 +927,11 @@ d_field_replay_request_after(<<1:1, X:7, Rest/binary>>,
 				 F@_1, F@_2, F@_3, TrUserData);
 d_field_replay_request_after(<<0:1, X:7, Rest/binary>>,
 			     N, Acc, F@_1, _, F@_3, TrUserData) ->
-    {NewFValue, RestF} = {id(X bsl N + Acc, TrUserData),
-			  Rest},
+    {NewFValue, RestF} = begin
+			   Len = X bsl N + Acc,
+			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
+			   {id(binary:copy(Bytes), TrUserData), Rest2}
+			 end,
     dfp_read_field_def_replay_request(RestF, 0, 0, F@_1,
 				      NewFValue, F@_3, TrUserData).
 
@@ -2103,13 +2191,23 @@ merge_msgs(Prev, New, MsgName, Opts) ->
 -compile({nowarn_unused_function,merge_msg_subscribe_request/3}).
 merge_msg_subscribe_request(PMsg, NMsg, TrUserData) ->
     S1 = #{},
+    S2 = case {PMsg, NMsg} of
+	   {#{topics := PFtopics}, #{topics := NFtopics}} ->
+	       S1#{topics =>
+		       'erlang_++'(PFtopics, NFtopics, TrUserData)};
+	   {_, #{topics := NFtopics}} -> S1#{topics => NFtopics};
+	   {#{topics := PFtopics}, _} -> S1#{topics => PFtopics};
+	   {_, _} -> S1
+	 end,
+    S3 = case {PMsg, NMsg} of
+	   {_, #{'after' := NFafter}} -> S2#{'after' => NFafter};
+	   {#{'after' := PFafter}, _} -> S2#{'after' => PFafter};
+	   _ -> S2
+	 end,
     case {PMsg, NMsg} of
-      {#{topics := PFtopics}, #{topics := NFtopics}} ->
-	  S1#{topics =>
-		  'erlang_++'(PFtopics, NFtopics, TrUserData)};
-      {_, #{topics := NFtopics}} -> S1#{topics => NFtopics};
-      {#{topics := PFtopics}, _} -> S1#{topics => PFtopics};
-      {_, _} -> S1
+      {_, #{limit := NFlimit}} -> S3#{limit => NFlimit};
+      {#{limit := PFlimit}, _} -> S3#{limit => PFlimit};
+      _ -> S3
     end.
 
 -compile({nowarn_unused_function,merge_msg_replay_request/3}).
@@ -2304,7 +2402,19 @@ v_msg_subscribe_request(#{} = M, Path, TrUserData) ->
 	  end;
       _ -> ok
     end,
+    case M of
+      #{'after' := F2} ->
+	  v_type_string(F2, ['after' | Path], TrUserData);
+      _ -> ok
+    end,
+    case M of
+      #{limit := F3} ->
+	  v_type_uint64(F3, [limit | Path], TrUserData);
+      _ -> ok
+    end,
     lists:foreach(fun (topics) -> ok;
+		      ('after') -> ok;
+		      (limit) -> ok;
 		      (OtherKey) ->
 			  mk_type_error({extraneous_key, OtherKey}, M, Path)
 		  end,
@@ -2336,7 +2446,7 @@ v_msg_replay_request(#{} = M, Path, TrUserData) ->
     end,
     case M of
       #{'after' := F2} ->
-	  v_type_uint64(F2, ['after' | Path], TrUserData);
+	  v_type_string(F2, ['after' | Path], TrUserData);
       _ -> ok
     end,
     case M of
@@ -2755,11 +2865,15 @@ get_msg_defs() ->
       [{'NULL_VALUE', 0}]},
      {{msg, subscribe_request},
       [#{name => topics, fnum => 1, rnum => 2, type => string,
-	 occurrence => repeated, opts => []}]},
+	 occurrence => repeated, opts => []},
+       #{name => 'after', fnum => 2, rnum => 3, type => string,
+	 occurrence => optional, opts => []},
+       #{name => limit, fnum => 3, rnum => 4, type => uint64,
+	 occurrence => optional, opts => []}]},
      {{msg, replay_request},
       [#{name => topics, fnum => 1, rnum => 2, type => string,
 	 occurrence => repeated, opts => []},
-       #{name => 'after', fnum => 2, rnum => 3, type => uint64,
+       #{name => 'after', fnum => 2, rnum => 3, type => string,
 	 occurrence => optional, opts => []},
        #{name => limit, fnum => 3, rnum => 4, type => uint64,
 	 occurrence => optional, opts => []}]},
@@ -2850,11 +2964,15 @@ fetch_enum_def(EnumName) ->
 
 find_msg_def(subscribe_request) ->
     [#{name => topics, fnum => 1, rnum => 2, type => string,
-       occurrence => repeated, opts => []}];
+       occurrence => repeated, opts => []},
+     #{name => 'after', fnum => 2, rnum => 3, type => string,
+       occurrence => optional, opts => []},
+     #{name => limit, fnum => 3, rnum => 4, type => uint64,
+       occurrence => optional, opts => []}];
 find_msg_def(replay_request) ->
     [#{name => topics, fnum => 1, rnum => 2, type => string,
        occurrence => repeated, opts => []},
-     #{name => 'after', fnum => 2, rnum => 3, type => uint64,
+     #{name => 'after', fnum => 2, rnum => 3, type => string,
        occurrence => optional, opts => []},
      #{name => limit, fnum => 3, rnum => 4, type => uint64,
        occurrence => optional, opts => []}];
@@ -3134,7 +3252,7 @@ get_protos_by_pkg_name_as_fqbin(E) ->
 
 
 descriptor() ->
-    <<10, 193, 3, 10, 19, 105, 98, 101, 110, 116, 111, 47,
+    <<10, 223, 3, 10, 19, 105, 98, 101, 110, 116, 111, 47,
       105, 98, 101, 110, 116, 111, 46, 112, 114, 111, 116,
       111, 18, 6, 105, 98, 101, 110, 116, 111, 34, 242, 1, 10,
       5, 69, 118, 101, 110, 116, 18, 16, 10, 8, 101, 118, 101,
@@ -3159,67 +3277,69 @@ descriptor() ->
       82, 101, 112, 108, 97, 121, 82, 101, 113, 117, 101, 115,
       116, 18, 14, 10, 6, 116, 111, 112, 105, 99, 115, 24, 1,
       32, 3, 40, 9, 18, 13, 10, 5, 97, 102, 116, 101, 114, 24,
-      2, 32, 1, 40, 4, 18, 13, 10, 5, 108, 105, 109, 105, 116,
-      24, 3, 32, 1, 40, 4, 34, 34, 10, 16, 83, 117, 98, 115,
+      2, 32, 1, 40, 9, 18, 13, 10, 5, 108, 105, 109, 105, 116,
+      24, 3, 32, 1, 40, 4, 34, 64, 10, 16, 83, 117, 98, 115,
       99, 114, 105, 98, 101, 82, 101, 113, 117, 101, 115, 116,
       18, 14, 10, 6, 116, 111, 112, 105, 99, 115, 24, 1, 32,
-      3, 40, 9, 50, 66, 10, 6, 73, 98, 101, 110, 116, 111, 18,
-      56, 10, 9, 83, 117, 98, 115, 99, 114, 105, 98, 101, 18,
-      24, 46, 105, 98, 101, 110, 116, 111, 46, 83, 117, 98,
-      115, 99, 114, 105, 98, 101, 82, 101, 113, 117, 101, 115,
-      116, 26, 13, 46, 105, 98, 101, 110, 116, 111, 46, 69,
-      118, 101, 110, 116, 40, 0, 48, 0, 98, 6, 112, 114, 111,
-      116, 111, 51, 10, 135, 4, 10, 28, 103, 111, 111, 103,
-      108, 101, 47, 112, 114, 111, 116, 111, 98, 117, 102, 47,
-      115, 116, 114, 117, 99, 116, 46, 112, 114, 111, 116,
-      111, 18, 15, 103, 111, 111, 103, 108, 101, 46, 112, 114,
-      111, 116, 111, 98, 117, 102, 34, 51, 10, 9, 76, 105,
-      115, 116, 86, 97, 108, 117, 101, 18, 38, 10, 6, 118, 97,
-      108, 117, 101, 115, 24, 1, 32, 3, 40, 11, 50, 22, 46,
-      103, 111, 111, 103, 108, 101, 46, 112, 114, 111, 116,
-      111, 98, 117, 102, 46, 86, 97, 108, 117, 101, 34, 60,
-      10, 6, 83, 116, 114, 117, 99, 116, 18, 50, 10, 6, 102,
-      105, 101, 108, 100, 115, 24, 1, 32, 3, 40, 11, 50, 34,
-      46, 103, 111, 111, 103, 108, 101, 46, 112, 114, 111,
-      116, 111, 98, 117, 102, 46, 77, 97, 112, 70, 105, 101,
-      108, 100, 69, 110, 116, 114, 121, 95, 49, 95, 49, 34,
-      234, 1, 10, 5, 86, 97, 108, 117, 101, 18, 48, 10, 10,
-      110, 117, 108, 108, 95, 118, 97, 108, 117, 101, 24, 1,
-      32, 1, 40, 14, 50, 26, 46, 103, 111, 111, 103, 108, 101,
-      46, 112, 114, 111, 116, 111, 98, 117, 102, 46, 78, 117,
-      108, 108, 86, 97, 108, 117, 101, 72, 0, 18, 22, 10, 12,
-      110, 117, 109, 98, 101, 114, 95, 118, 97, 108, 117, 101,
-      24, 2, 32, 1, 40, 1, 72, 0, 18, 22, 10, 12, 115, 116,
-      114, 105, 110, 103, 95, 118, 97, 108, 117, 101, 24, 3,
-      32, 1, 40, 9, 72, 0, 18, 20, 10, 10, 98, 111, 111, 108,
-      95, 118, 97, 108, 117, 101, 24, 4, 32, 1, 40, 8, 72, 0,
-      18, 47, 10, 12, 115, 116, 114, 117, 99, 116, 95, 118,
-      97, 108, 117, 101, 24, 5, 32, 1, 40, 11, 50, 23, 46,
-      103, 111, 111, 103, 108, 101, 46, 112, 114, 111, 116,
-      111, 98, 117, 102, 46, 83, 116, 114, 117, 99, 116, 72,
-      0, 18, 48, 10, 10, 108, 105, 115, 116, 95, 118, 97, 108,
-      117, 101, 24, 6, 32, 1, 40, 11, 50, 26, 46, 103, 111,
-      111, 103, 108, 101, 46, 112, 114, 111, 116, 111, 98,
-      117, 102, 46, 76, 105, 115, 116, 86, 97, 108, 117, 101,
-      72, 0, 66, 6, 10, 4, 107, 105, 110, 100, 34, 81, 10, 17,
-      77, 97, 112, 70, 105, 101, 108, 100, 69, 110, 116, 114,
-      121, 95, 49, 95, 49, 18, 11, 10, 3, 107, 101, 121, 24,
-      1, 32, 2, 40, 9, 18, 37, 10, 5, 118, 97, 108, 117, 101,
-      24, 2, 32, 2, 40, 11, 50, 22, 46, 103, 111, 111, 103,
+      3, 40, 9, 18, 13, 10, 5, 97, 102, 116, 101, 114, 24, 2,
+      32, 1, 40, 9, 18, 13, 10, 5, 108, 105, 109, 105, 116,
+      24, 3, 32, 1, 40, 4, 50, 66, 10, 6, 73, 98, 101, 110,
+      116, 111, 18, 56, 10, 9, 83, 117, 98, 115, 99, 114, 105,
+      98, 101, 18, 24, 46, 105, 98, 101, 110, 116, 111, 46,
+      83, 117, 98, 115, 99, 114, 105, 98, 101, 82, 101, 113,
+      117, 101, 115, 116, 26, 13, 46, 105, 98, 101, 110, 116,
+      111, 46, 69, 118, 101, 110, 116, 40, 0, 48, 0, 98, 6,
+      112, 114, 111, 116, 111, 51, 10, 135, 4, 10, 28, 103,
+      111, 111, 103, 108, 101, 47, 112, 114, 111, 116, 111,
+      98, 117, 102, 47, 115, 116, 114, 117, 99, 116, 46, 112,
+      114, 111, 116, 111, 18, 15, 103, 111, 111, 103, 108,
+      101, 46, 112, 114, 111, 116, 111, 98, 117, 102, 34, 51,
+      10, 9, 76, 105, 115, 116, 86, 97, 108, 117, 101, 18, 38,
+      10, 6, 118, 97, 108, 117, 101, 115, 24, 1, 32, 3, 40,
+      11, 50, 22, 46, 103, 111, 111, 103, 108, 101, 46, 112,
+      114, 111, 116, 111, 98, 117, 102, 46, 86, 97, 108, 117,
+      101, 34, 60, 10, 6, 83, 116, 114, 117, 99, 116, 18, 50,
+      10, 6, 102, 105, 101, 108, 100, 115, 24, 1, 32, 3, 40,
+      11, 50, 34, 46, 103, 111, 111, 103, 108, 101, 46, 112,
+      114, 111, 116, 111, 98, 117, 102, 46, 77, 97, 112, 70,
+      105, 101, 108, 100, 69, 110, 116, 114, 121, 95, 49, 95,
+      49, 34, 234, 1, 10, 5, 86, 97, 108, 117, 101, 18, 48,
+      10, 10, 110, 117, 108, 108, 95, 118, 97, 108, 117, 101,
+      24, 1, 32, 1, 40, 14, 50, 26, 46, 103, 111, 111, 103,
       108, 101, 46, 112, 114, 111, 116, 111, 98, 117, 102, 46,
-      86, 97, 108, 117, 101, 58, 8, 8, 0, 16, 0, 24, 0, 56, 1,
-      42, 27, 10, 9, 78, 117, 108, 108, 86, 97, 108, 117, 101,
-      18, 14, 10, 10, 78, 85, 76, 76, 95, 86, 65, 76, 85, 69,
-      16, 0, 98, 6, 112, 114, 111, 116, 111, 51, 10, 103, 10,
-      31, 103, 111, 111, 103, 108, 101, 47, 112, 114, 111,
-      116, 111, 98, 117, 102, 47, 116, 105, 109, 101, 115,
-      116, 97, 109, 112, 46, 112, 114, 111, 116, 111, 18, 15,
+      78, 117, 108, 108, 86, 97, 108, 117, 101, 72, 0, 18, 22,
+      10, 12, 110, 117, 109, 98, 101, 114, 95, 118, 97, 108,
+      117, 101, 24, 2, 32, 1, 40, 1, 72, 0, 18, 22, 10, 12,
+      115, 116, 114, 105, 110, 103, 95, 118, 97, 108, 117,
+      101, 24, 3, 32, 1, 40, 9, 72, 0, 18, 20, 10, 10, 98,
+      111, 111, 108, 95, 118, 97, 108, 117, 101, 24, 4, 32, 1,
+      40, 8, 72, 0, 18, 47, 10, 12, 115, 116, 114, 117, 99,
+      116, 95, 118, 97, 108, 117, 101, 24, 5, 32, 1, 40, 11,
+      50, 23, 46, 103, 111, 111, 103, 108, 101, 46, 112, 114,
+      111, 116, 111, 98, 117, 102, 46, 83, 116, 114, 117, 99,
+      116, 72, 0, 18, 48, 10, 10, 108, 105, 115, 116, 95, 118,
+      97, 108, 117, 101, 24, 6, 32, 1, 40, 11, 50, 26, 46,
       103, 111, 111, 103, 108, 101, 46, 112, 114, 111, 116,
-      111, 98, 117, 102, 34, 43, 10, 9, 84, 105, 109, 101,
-      115, 116, 97, 109, 112, 18, 15, 10, 7, 115, 101, 99,
-      111, 110, 100, 115, 24, 1, 32, 1, 40, 3, 18, 13, 10, 5,
-      110, 97, 110, 111, 115, 24, 2, 32, 1, 40, 5, 98, 6, 112,
-      114, 111, 116, 111, 51>>.
+      111, 98, 117, 102, 46, 76, 105, 115, 116, 86, 97, 108,
+      117, 101, 72, 0, 66, 6, 10, 4, 107, 105, 110, 100, 34,
+      81, 10, 17, 77, 97, 112, 70, 105, 101, 108, 100, 69,
+      110, 116, 114, 121, 95, 49, 95, 49, 18, 11, 10, 3, 107,
+      101, 121, 24, 1, 32, 2, 40, 9, 18, 37, 10, 5, 118, 97,
+      108, 117, 101, 24, 2, 32, 2, 40, 11, 50, 22, 46, 103,
+      111, 111, 103, 108, 101, 46, 112, 114, 111, 116, 111,
+      98, 117, 102, 46, 86, 97, 108, 117, 101, 58, 8, 8, 0,
+      16, 0, 24, 0, 56, 1, 42, 27, 10, 9, 78, 117, 108, 108,
+      86, 97, 108, 117, 101, 18, 14, 10, 10, 78, 85, 76, 76,
+      95, 86, 65, 76, 85, 69, 16, 0, 98, 6, 112, 114, 111,
+      116, 111, 51, 10, 103, 10, 31, 103, 111, 111, 103, 108,
+      101, 47, 112, 114, 111, 116, 111, 98, 117, 102, 47, 116,
+      105, 109, 101, 115, 116, 97, 109, 112, 46, 112, 114,
+      111, 116, 111, 18, 15, 103, 111, 111, 103, 108, 101, 46,
+      112, 114, 111, 116, 111, 98, 117, 102, 34, 43, 10, 9,
+      84, 105, 109, 101, 115, 116, 97, 109, 112, 18, 15, 10,
+      7, 115, 101, 99, 111, 110, 100, 115, 24, 1, 32, 1, 40,
+      3, 18, 13, 10, 5, 110, 97, 110, 111, 115, 24, 2, 32, 1,
+      40, 5, 98, 6, 112, 114, 111, 116, 111, 51>>.
 
 descriptor("ibento") ->
     <<10, 19, 105, 98, 101, 110, 116, 111, 47, 105, 98, 101,
@@ -3247,17 +3367,19 @@ descriptor("ibento") ->
       112, 108, 97, 121, 82, 101, 113, 117, 101, 115, 116, 18,
       14, 10, 6, 116, 111, 112, 105, 99, 115, 24, 1, 32, 3,
       40, 9, 18, 13, 10, 5, 97, 102, 116, 101, 114, 24, 2, 32,
-      1, 40, 4, 18, 13, 10, 5, 108, 105, 109, 105, 116, 24, 3,
-      32, 1, 40, 4, 34, 34, 10, 16, 83, 117, 98, 115, 99, 114,
+      1, 40, 9, 18, 13, 10, 5, 108, 105, 109, 105, 116, 24, 3,
+      32, 1, 40, 4, 34, 64, 10, 16, 83, 117, 98, 115, 99, 114,
       105, 98, 101, 82, 101, 113, 117, 101, 115, 116, 18, 14,
       10, 6, 116, 111, 112, 105, 99, 115, 24, 1, 32, 3, 40, 9,
-      50, 66, 10, 6, 73, 98, 101, 110, 116, 111, 18, 56, 10,
-      9, 83, 117, 98, 115, 99, 114, 105, 98, 101, 18, 24, 46,
-      105, 98, 101, 110, 116, 111, 46, 83, 117, 98, 115, 99,
-      114, 105, 98, 101, 82, 101, 113, 117, 101, 115, 116, 26,
-      13, 46, 105, 98, 101, 110, 116, 111, 46, 69, 118, 101,
-      110, 116, 40, 0, 48, 0, 98, 6, 112, 114, 111, 116, 111,
-      51>>;
+      18, 13, 10, 5, 97, 102, 116, 101, 114, 24, 2, 32, 1, 40,
+      9, 18, 13, 10, 5, 108, 105, 109, 105, 116, 24, 3, 32, 1,
+      40, 4, 50, 66, 10, 6, 73, 98, 101, 110, 116, 111, 18,
+      56, 10, 9, 83, 117, 98, 115, 99, 114, 105, 98, 101, 18,
+      24, 46, 105, 98, 101, 110, 116, 111, 46, 83, 117, 98,
+      115, 99, 114, 105, 98, 101, 82, 101, 113, 117, 101, 115,
+      116, 26, 13, 46, 105, 98, 101, 110, 116, 111, 46, 69,
+      118, 101, 110, 116, 40, 0, 48, 0, 98, 6, 112, 114, 111,
+      116, 111, 51>>;
 descriptor("struct") ->
     <<10, 28, 103, 111, 111, 103, 108, 101, 47, 112, 114,
       111, 116, 111, 98, 117, 102, 47, 115, 116, 114, 117, 99,

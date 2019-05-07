@@ -26,7 +26,6 @@ use diesel::r2d2::ConnectionManager;
 use diesel::Connection;
 use diesel::PgConnection;
 use r2d2::{CustomizeConnection, Pool, PooledConnection};
-use tokio_threadpool::blocking;
 
 use std::sync::Arc;
 
@@ -50,6 +49,11 @@ impl ibento::grpc::server::Ibento for Ibento {
     fn subscribe(&mut self, request: Request<SubscribeRequest>) -> Self::SubscribeFuture {
         println!("Subscribe = {:?}", request);
 
+        let request = request.into_inner();
+        // TODO: I wish I could mark the field as prost optional, then I can do request.limit.or(5)
+        let limit = if request.limit != 0 { request.limit } else { 5 };
+        let after = if request.after != "" { Some(request.after) } else { None };
+
         let (mut tx, rx) = mpsc::channel::<Result<Event, tower_grpc::Status>>(4);
 
         let state = self.state.clone();
@@ -59,7 +63,21 @@ impl ibento::grpc::server::Ibento for Ibento {
             let connection = state.pool.get().unwrap();
             let data = await!(blocking_fn(move || { 
                 use schema::events::dsl::*;
-                events.limit(5).load::<crate::data::Event>(&connection).expect("Error loading events")
+
+                let mut query = events
+                    .limit(limit as i64)
+                    .order_by(ingest_id.asc())
+                    .into_boxed();
+
+                if let Some(after) = &after {
+                    // TODO: extract parsing, return tower_grpc::Status::new(Code::InvalidArgument, "message here")
+                    let after = uuid::Uuid::parse_str(after).expect("Invalid after ulid");
+                    query = query.filter(ingest_id.gt(after));
+                }
+
+                query
+                    .load::<crate::data::Event>(&connection)
+                    .expect("Error loading events")
             }));
 
             for event in data {

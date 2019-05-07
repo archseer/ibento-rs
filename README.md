@@ -18,6 +18,10 @@ cargo run --bin ibento-server
 cargo run --bin ibento-client
 cd client
 iex -S mix
-iex> Ibento.Client.subscribe(%{topics: ["a", "b"]})
+iex> Ibento.Client.subscribe(%{
+  topics: ["a", "b"],
+  after: "01667f19-9e88-0000-0000-000000000002",
+  limit: 3
+})
 ```
 
