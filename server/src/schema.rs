@@ -1,3 +1,5 @@
+// generated via `diesel print-schema`'s output.
+
 table! {
     events (id) {
         id -> Uuid,

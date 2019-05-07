@@ -58,6 +58,13 @@ do_decode(K = data, V, A) when is_map(V) ->
 do_decode(K = metadata, V, A) when is_map(V) ->
 	Value = ibento_google_struct:decode_value(V),
 	maps:update(K, Value, A);
+do_decode(K = inserted_at, #{seconds := Seconds, nanos := Nanos}, A) ->
+	% super annoying but easiest way to ensure Elixir constructs nanosecond
+	% {_, 6} precision field.
+	V = 'Elixir.System':convert_time_unit(Seconds, second, nanosecond),
+	{ok, Value} = 'Elixir.DateTime':from_unix(V, nanosecond),
+	Value1 = 'Elixir.DateTime':add(Value, Nanos, nanosecond),
+	maps:update(K, Value1, A);
 do_decode(K, V, A) when K =/= '__struct__' ->
 	maps:update(K, V, A).
 
