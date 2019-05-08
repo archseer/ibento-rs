@@ -3,22 +3,70 @@ defmodule Ibento.Client do
   """
   require Logger
 
+  # <<(:erlang.system_time(:millisecond) - :timer.minutes(5))::unsigned-big-integer-unit(1)-size(48), 0::80>>`
+  # Or if you wanted it to be `before` a certain time non-inclusive:
+  # `<<(:erlang.system_time(:millisecond) - :timer.minutes(5))::unsigned-big-integer-unit(1)-size(48), (:erlang.bsl(1, 80) - 1)::80>>
+
   @spec subscribe(%{topics: [String.t()]}) :: {:ok, stream :: term()} | {:error, reason :: term()}
   def subscribe(request) do
     {:ok, stream} = :ibento_ibento_client.subscribe(request)
     {:ok, _headers} = :grpcbox_client.recv_headers(stream, 5000)
-    loop(stream)
+    stream
   end
 
-  def loop(stream) do
+  def loop(stream, mod) do
     case :grpcbox_client.recv_data(stream, 5000) do
       {:ok, data} ->
-        IO.inspect(:ibento_event.decode(data))
-        loop(stream)
+        :ok =
+          data
+          |> :ibento_event.decode()
+          |> mod.perform()
+
+        loop(stream, mod)
       {:error, :closed} ->
         nil
       :stream_finished ->
         nil
+    end
+  end
+
+  def consume(mod) do
+    config = mod.config()
+    {:ok, cursor} = mod.fetch_cursor()
+
+    config
+    |> Map.put(:after, cursor)
+    |> subscribe()
+    |> loop(mod)
+  end
+
+  @type cursor :: String.t()
+  @type event :: term
+  # @type event :: %Ibento.Client.Event{}
+
+  defmodule Consumer do
+    @callback config() :: map()
+    @callback fetch_cursor() :: {:ok, Ibento.Client.cursor}
+    @callback perform(Ibento.Client.event) :: :ok
+  end
+
+  defmodule A do
+    @behaviour Consumer
+
+    def config do
+      %{
+        topics: ["Organization:b0a089cc-0bcf-4f3c-9cab-cf7327938f91"],
+        limit: 3
+      }
+    end
+
+    def fetch_cursor do
+      {:ok, "01667f19-9e88-0000-0000-000000000002"}
+    end
+
+    def perform(event) do
+      IO.inspect(event)
+      :ok
     end
   end
 
@@ -31,7 +79,7 @@ defmodule Ibento.Client do
   # the boilerplate for us. In the future we could also allow an extra config
   # setting that would enable parallel processing via a pool, without any
   # breaking changes to the API.
- 
+
   # defmodule Connection do
   #   @behavior :gen_statem
 
@@ -44,7 +92,7 @@ defmodule Ibento.Client do
   #   # def request(pid, request) do
   #   #   :gen_statem.call(pid, {:request, request})
   #   # end
-  
+
   #   ## :gen_statem callbacks
 
   #   @impl true

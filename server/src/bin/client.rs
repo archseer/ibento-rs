@@ -42,6 +42,8 @@ pub fn main() {
             let start = Instant::now();
             let r_feature = client
                 .subscribe(Request::new(SubscribeRequest {
+                    after: "".to_owned(),
+                    limit: 5,
                     topics: vec!["a".to_owned(), "b".to_owned()],
                 }))
                 .map_err(|e| eprintln!("Subscribe request failed; err={:?}", e))

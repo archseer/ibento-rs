@@ -3,7 +3,7 @@
 %% @end
 %%%-------------------------------------------------------------------
 
-%% this module was generated on 2019-05-07T07:19:10+00:00 and should not be modified manually
+%% this module was generated on 2019-05-08T05:32:35+00:00 and should not be modified manually
 
 -module(ibento_ibento_client).
 

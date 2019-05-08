@@ -52,7 +52,7 @@ impl ibento::grpc::server::Ibento for Ibento {
         let request = request.into_inner();
         // TODO: I wish I could mark the field as prost optional, then I can do request.limit.or(5)
         let limit = if request.limit != 0 { request.limit } else { 5 };
-        let after = if request.after != "" { Some(request.after) } else { None };
+        let after = if request.after != "" { Some(request.after.clone()) } else { None };
 
         let (mut tx, rx) = mpsc::channel::<Result<Event, tower_grpc::Status>>(4);
 
@@ -62,26 +62,32 @@ impl ibento::grpc::server::Ibento for Ibento {
             // TODO error handling
             let connection = state.pool.get().unwrap();
             let data = await!(blocking_fn(move || { 
-                use schema::events::dsl::*;
+                use schema::{events, streams, stream_events};
 
-                let mut query = events
+                let topics = if request.topics.is_empty() { vec![String::from("$all")] } else { request.topics.clone() };
+
+                let mut query = events::table
                     .limit(limit as i64)
-                    .order_by(ingest_id.asc())
+                    .order_by(events::ingest_id.asc())
                     .into_boxed();
 
                 if let Some(after) = &after {
                     // TODO: extract parsing, return tower_grpc::Status::new(Code::InvalidArgument, "message here")
                     let after = uuid::Uuid::parse_str(after).expect("Invalid after ulid");
-                    query = query.filter(ingest_id.gt(after));
+                    query = query.filter(events::ingest_id.gt(after));
                 }
 
+                use diesel::pg::expression::dsl::any;
+
                 query
+                    .left_join(stream_events::table.left_join(streams::table))
+                    .filter(streams::source.eq(any(topics)))
                     .load::<crate::data::Event>(&connection)
                     .expect("Error loading events")
             }));
 
             for event in data {
-                println!("Event = {:?}", event);
+                // println!("Event = {:?}", event);
                 await!(tx.send(Ok(event.into()))).unwrap();
             }
         });
