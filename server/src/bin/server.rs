@@ -7,7 +7,6 @@ use ibento::grpc::{server, Event, SubscribeRequest};
 use dotenv::dotenv;
 
 use futures01::{Future, Stream};
-use tokio::executor::DefaultExecutor;
 use tokio::net::TcpListener;
 use tower_grpc::{Request, Response};
 use tower_hyper::server::{Http, Server};
@@ -61,7 +60,7 @@ impl ibento::grpc::server::Ibento for Ibento {
         runtime::spawn(async move {
             // TODO error handling
             let connection = state.pool.get().unwrap();
-            let data = await!(blocking_fn(move || { 
+            let data = await!(blocking_fn(move || {
                 use schema::{events, streams, stream_events};
 
                 let topics = if request.topics.is_empty() { vec![String::from("$all")] } else { request.topics.clone() };
@@ -86,10 +85,17 @@ impl ibento::grpc::server::Ibento for Ibento {
                     .expect("Error loading events")
             }));
 
-            for event in data {
-                // println!("Event = {:?}", event);
-                await!(tx.send(Ok(event.into()))).unwrap();
-            }
+            // for event in data {
+            //     // println!("Event = {:?}", event);
+            //     await!(tx.send(Ok(event.into())))?
+            // }
+            // send_all might be better
+            let mut stream = futures::stream::iter(data.into_iter().map(|v| Ok(v.into())));
+            await!(tx.send_all(&mut stream))?;
+
+            drop(tx);
+            // await!(tx.send(Err(tower_grpc::Status::new(tower_grpc::Code::Ok, "")))).unwrap();
+            Ok::<(), mpsc::SendError>(())
         });
 
         futures01::future::ok(Response::new(Box::new(rx.compat())))
@@ -129,7 +135,6 @@ pub async fn main() -> std::io::Result<()> {
 
     let mut server = Server::new(new_service);
     let http = Http::new().http2_only(true).clone();
-    let http = http.with_executor(DefaultExecutor::current());
 
     let addr = "127.0.0.1:5600".parse().unwrap();
     let bind = TcpListener::bind(&addr).expect("bind");
@@ -139,16 +144,17 @@ pub async fn main() -> std::io::Result<()> {
     let serve = bind
 	.incoming()
 	.for_each(move |sock| {
+            println!("hi");
 	    if let Err(e) = sock.set_nodelay(true) {
 		return Err(e);
 	    }
 
 	    let serve = server.serve_with(sock, http.clone());
-	    runtime::spawn(serve.map_err(|e| panic!("h2 error: {:?}", e)).compat());
+	    runtime::spawn(serve.map_err(|e| println!("h2 error: {:?}", e)).compat());
 
 	    Ok::<(), std::io::Error>(())
 	});
- 
+
     await!(serve.compat())?;
 
     Ok(())

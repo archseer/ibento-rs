@@ -14,30 +14,32 @@ defmodule Ibento.Client do
     stream
   end
 
-  def loop(stream, mod) do
+  def loop(stream, cursor, mod) do
     case :grpcbox_client.recv_data(stream, 5000) do
       {:ok, data} ->
-        :ok =
-          data
-          |> :ibento_event.decode()
-          |> mod.perform()
+        event = :ibento_event.decode(data)
+        :ok = mod.perform(event)
 
-        loop(stream, mod)
+        new_cursor = event.ingest_id
+        loop(stream, new_cursor, mod)
       {:error, :closed} ->
-        nil
+        IO.inspect(:closed)
+        :grpcbox_client_stream.close_and_flush(stream)
+        consume(mod, cursor)
       :stream_finished ->
-        nil
+        IO.puts "ok"
+        consume(mod, cursor)
     end
   end
 
-  def consume(mod) do
+  def consume(mod, cursor \\ nil) do
     config = mod.config()
-    {:ok, cursor} = mod.fetch_cursor()
+    {:ok, cursor} = if cursor, do: {:ok, cursor}, else: mod.fetch_cursor()
 
     config
     |> Map.put(:after, cursor)
     |> subscribe()
-    |> loop(mod)
+    |> loop(cursor, mod)
   end
 
   @type cursor :: String.t()
@@ -56,7 +58,7 @@ defmodule Ibento.Client do
     def config do
       %{
         topics: ["Organization:b0a089cc-0bcf-4f3c-9cab-cf7327938f91"],
-        limit: 3
+        limit: 10
       }
     end
 
@@ -65,7 +67,8 @@ defmodule Ibento.Client do
     end
 
     def perform(event) do
-      IO.inspect(event)
+      # IO.inspect(event)
+      IO.inspect(event.ingest_id)
       :ok
     end
   end
