@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+    
 #![allow(unused_variables)]
 #![feature(async_await, await_macro)]
 
@@ -10,6 +11,8 @@ use futures01::{Future, Stream};
 use tokio::net::TcpListener;
 use tower_grpc::{Request, Response};
 use tower_hyper::server::{Http, Server};
+use tokio_trace::{field, Level};
+use tokio_trace_futures::Instrument;
 
 use futures::{
   compat::*,
@@ -29,6 +32,9 @@ use r2d2::{CustomizeConnection, Pool, PooledConnection};
 use std::sync::Arc;
 
 use ibento::{schema, data};
+
+#[macro_use]
+extern crate tokio_trace;
 
 #[derive(Clone)]
 struct Ibento {
@@ -55,12 +61,15 @@ impl ibento::grpc::server::Ibento for Ibento {
 
         let (mut tx, rx) = mpsc::channel::<Result<Event, tower_grpc::Status>>(4);
 
-        let state = self.state.clone();
+        // let state = self.state.clone();
 
-        runtime::spawn(async move {
+        let pool = self.state.pool.clone();
+        /*runtime*/tokio::spawn(async move {
             // TODO error handling
-            let connection = state.pool.get().unwrap();
-            let data = await!(blocking_fn(move || {
+            let data = await!(blocking_fn(|| {
+                println!("before");
+                let connection = pool.get().unwrap();
+                error!("test2");
                 use schema::{events, streams, stream_events};
 
                 let topics = if request.topics.is_empty() { vec![String::from("$all")] } else { request.topics.clone() };
@@ -78,35 +87,140 @@ impl ibento::grpc::server::Ibento for Ibento {
 
                 use diesel::pg::expression::dsl::any;
 
+                println!("between");
                 query
                     .left_join(stream_events::table.left_join(streams::table))
                     .filter(streams::source.eq(any(topics)))
                     .load::<crate::data::Event>(&connection)
-                    .expect("Error loading events")
+                    .expect("Error loading events");
+                println!("after");
+                drop(connection)
             }));
 
+            let data = vec![
+                data::Event {
+                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+                    correlation: None,
+                    causation: None,
+                    data: serde_json::Value::Null,
+                    metadata: serde_json::Value::Null,
+                    debug: false,
+                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+                },
+                data::Event {
+                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+                    correlation: None,
+                    causation: None,
+                    data: serde_json::Value::Null,
+                    metadata: serde_json::Value::Null,
+                    debug: false,
+                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+                },
+                data::Event {
+                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+                    correlation: None,
+                    causation: None,
+                    data: serde_json::Value::Null,
+                    metadata: serde_json::Value::Null,
+                    debug: false,
+                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+                },
+                data::Event {
+                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+                    correlation: None,
+                    causation: None,
+                    data: serde_json::Value::Null,
+                    metadata: serde_json::Value::Null,
+                    debug: false,
+                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+                },
+                data::Event {
+                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+                    correlation: None,
+                    causation: None,
+                    data: serde_json::Value::Null,
+                    metadata: serde_json::Value::Null,
+                    debug: false,
+                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+                },
+                data::Event {
+                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+                    correlation: None,
+                    causation: None,
+                    data: serde_json::Value::Null,
+                    metadata: serde_json::Value::Null,
+                    debug: false,
+                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+                },
+                data::Event {
+                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+                    correlation: None,
+                    causation: None,
+                    data: serde_json::Value::Null,
+                    metadata: serde_json::Value::Null,
+                    debug: false,
+                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+                },
+                data::Event {
+                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+                    correlation: None,
+                    causation: None,
+                    data: serde_json::Value::Null,
+                    metadata: serde_json::Value::Null,
+                    debug: false,
+                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+                },
+                data::Event {
+                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+                    correlation: None,
+                    causation: None,
+                    data: serde_json::Value::Null,
+                    metadata: serde_json::Value::Null,
+                    debug: false,
+                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+                }
+            ];
             // for event in data {
-            //     // println!("Event = {:?}", event);
-            //     await!(tx.send(Ok(event.into())))?
+            //     println!("Event = {:?}", event);
+            //     // await!(tx.send(Ok(event.into())))?
             // }
             // send_all might be better
             let mut stream = futures::stream::iter(data.into_iter().map(|v| Ok(v.into())));
-            await!(tx.send_all(&mut stream))?;
+            await!(tx.send_all(&mut stream)); //?;
 
-            drop(tx);
             // await!(tx.send(Err(tower_grpc::Status::new(tower_grpc::Code::Ok, "")))).unwrap();
-            Ok::<(), mpsc::SendError>(())
-        });
+            // Ok::<(), mpsc::SendError>(())
+        }.unit_error().boxed().compat());
 
         futures01::future::ok(Response::new(Box::new(rx.compat())))
     }
 }
 
-fn blocking_fn<F, T>(mut f: F) -> impl futures::future::Future<Output = T>
-where F: FnMut() -> T {
+fn blocking_fn<F, T>(f: F) -> impl futures::future::Future<Output = T>
+where F: FnOnce() -> T {
+    // this f.take() trick is from https://github.com/gotham-rs/gotham/blob/431f1ca0da26c89e7e94079e89f6a9ca39c69090/middleware/diesel/src/repo.rs#L145-L148
+    let mut f = Some(f);
     futures::future::poll_fn(move |_| {
         match tokio_threadpool::blocking(|| {
-            f()
+            f.take().unwrap()()
         }).expect("the threadpool shut down") {
             futures01::Async::Ready(n) => futures::task::Poll::Ready(n),
             futures01::Async::NotReady => futures::task::Poll::Pending
@@ -114,48 +228,84 @@ where F: FnMut() -> T {
     })
 }
 
-#[runtime::main(runtime_tokio::Tokio)]
-pub async fn main() -> std::io::Result<()> {
+// #[runtime::main(runtime_tokio::Tokio)]
+// pub async fn main() -> std::io::Result<()> {
+pub fn main() {
     let _ = ::env_logger::init();
 
     dotenv().ok();
 
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let manager = ConnectionManager::new(database_url);
+    let subscriber = tokio_trace_fmt::FmtSubscriber::builder()
+        // .with_filter(tokio_trace_fmt::filter::EnvFilter::from(
+        //     "tower_h2_server=trace",
+        // ))
+        .full()
+        .finish();
 
-    let pool = r2d2::Pool::builder()
-            .build(manager)
-            .expect("could not initiate test db pool");
+    tokio_trace::subscriber::with_default(subscriber, || {
+        let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = ConnectionManager::new(database_url);
 
-    let handler = Ibento {
-        state: Arc::new(State { pool }),
-    };
+        let pool = r2d2::Pool::builder()
+                .max_size(16)
+                .build(manager)
+                .expect("could not initiate test db pool");
 
-    let new_service = server::IbentoServer::new(handler);
+        let handler = Ibento {
+            state: Arc::new(State { pool }),
+        };
 
-    let mut server = Server::new(new_service);
-    let http = Http::new().http2_only(true).clone();
+        let addr: std::net::SocketAddr = "127.0.0.1:5600".parse().unwrap();
 
-    let addr = "127.0.0.1:5600".parse().unwrap();
-    let bind = TcpListener::bind(&addr).expect("bind");
+       let serve_span = span!(
+            Level::INFO,
+            "serve",
+            local_ip = field::debug(addr.ip()),
+            local_port = addr.port() as u64
+        );
 
-    println!("Listening on {:?}", addr);
+        let new_service = server::IbentoServer::new(handler);
 
-    let serve = bind
-	.incoming()
-	.for_each(move |sock| {
-            println!("hi");
-	    if let Err(e) = sock.set_nodelay(true) {
-		return Err(e);
-	    }
+        // let new_service =
+        //     tokio_trace_tower_http::InstrumentedMakeService::new::<http::Request<tower_hyper::Body>>>(new_service, serve_span.clone());
 
-	    let serve = server.serve_with(sock, http.clone());
-	    runtime::spawn(serve.map_err(|e| println!("h2 error: {:?}", e)).compat());
+        let mut server = Server::new(new_service);
+        let http = Http::new().http2_only(true).clone();
 
-	    Ok::<(), std::io::Error>(())
-	});
+        let bind = TcpListener::bind(&addr).expect("bind");
 
-    await!(serve.compat())?;
+        println!("Listening on {:?}", addr);
 
-    Ok(())
+        let serve = bind
+            .incoming()
+            .for_each(move |sock| {
+                if let Err(e) = sock.set_nodelay(true) {
+                    return Err(e);
+                }
+                let addr = sock.peer_addr().expect("can't get addr");
+                let conn_span = span!(
+                    Level::ERROR,
+                    "conn",
+                    remote_ip = field::debug(addr.ip()),
+                    remote_port = addr.port() as u64
+                );
+                let conn_span2 = conn_span.clone();
+                conn_span.enter(|| {
+                    let serve = server.serve_with(sock, http.clone())
+                            .map_err(|e| println!("error {:?}", e))
+                            .and_then(|_| {
+                                debug!("response finished");
+                                futures01::future::ok(())
+                            })
+                        .instrument(conn_span2);
+                    /*runtime*/tokio::spawn(serve.map_err(|e| println!("h2 error: {:?}", e)));
+                });
+
+                Ok::<(), std::io::Error>(())
+            })
+            .map_err(|e| eprintln!("accept error: {}", e));
+
+        tokio::run(serve);
+        // await!(serve.compat()); // TODO: ?
+    });
 }

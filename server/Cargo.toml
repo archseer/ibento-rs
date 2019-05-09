@@ -27,6 +27,10 @@ http = "0.1"
 prost = { git = "https://github.com/archseer/prost" }
 prost-types = { git = "https://github.com/archseer/prost", features = ["serde_json"] }
 tokio = "0.1"
+tokio-trace = "0.1.0"
+tokio-trace-tower-http = { git = "https://github.com/tokio-rs/tokio-trace-nursery" }
+tokio-trace-fmt = { git = "https://github.com/tokio-rs/tokio-trace-nursery" }
+tokio-trace-futures = { git = "https://github.com/tokio-rs/tokio-trace-nursery" }
 tower-request-modifier = { git = "https://github.com/tower-rs/tower-http" }
 tower-grpc = { git = "https://github.com/tower-rs/tower-grpc", features = ["tower-hyper"] }
 tower-hyper = { git = "https://github.com/tower-rs/tower-hyper" }
