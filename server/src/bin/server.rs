@@ -88,116 +88,117 @@ impl ibento::grpc::server::Ibento for Ibento {
                 use diesel::pg::expression::dsl::any;
 
                 println!("between");
-                query
+                let res = query
                     .left_join(stream_events::table.left_join(streams::table))
                     .filter(streams::source.eq(any(topics)))
                     .load::<crate::data::Event>(&connection)
                     .expect("Error loading events");
                 println!("after");
-                drop(connection)
+                drop(connection);
+                res
             }));
 
-            let data = vec![
-                data::Event {
-                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-                    correlation: None,
-                    causation: None,
-                    data: serde_json::Value::Null,
-                    metadata: serde_json::Value::Null,
-                    debug: false,
-                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-                },
-                data::Event {
-                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-                    correlation: None,
-                    causation: None,
-                    data: serde_json::Value::Null,
-                    metadata: serde_json::Value::Null,
-                    debug: false,
-                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-                },
-                data::Event {
-                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-                    correlation: None,
-                    causation: None,
-                    data: serde_json::Value::Null,
-                    metadata: serde_json::Value::Null,
-                    debug: false,
-                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-                },
-                data::Event {
-                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-                    correlation: None,
-                    causation: None,
-                    data: serde_json::Value::Null,
-                    metadata: serde_json::Value::Null,
-                    debug: false,
-                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-                },
-                data::Event {
-                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-                    correlation: None,
-                    causation: None,
-                    data: serde_json::Value::Null,
-                    metadata: serde_json::Value::Null,
-                    debug: false,
-                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-                },
-                data::Event {
-                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-                    correlation: None,
-                    causation: None,
-                    data: serde_json::Value::Null,
-                    metadata: serde_json::Value::Null,
-                    debug: false,
-                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-                },
-                data::Event {
-                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-                    correlation: None,
-                    causation: None,
-                    data: serde_json::Value::Null,
-                    metadata: serde_json::Value::Null,
-                    debug: false,
-                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-                },
-                data::Event {
-                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-                    correlation: None,
-                    causation: None,
-                    data: serde_json::Value::Null,
-                    metadata: serde_json::Value::Null,
-                    debug: false,
-                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-                },
-                data::Event {
-                    id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-                    type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-                    correlation: None,
-                    causation: None,
-                    data: serde_json::Value::Null,
-                    metadata: serde_json::Value::Null,
-                    debug: false,
-                    inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-                }
-            ];
+            // let data = vec![
+            //     data::Event {
+            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+            //         correlation: None,
+            //         causation: None,
+            //         data: serde_json::Value::Null,
+            //         metadata: serde_json::Value::Null,
+            //         debug: false,
+            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+            //     },
+            //     data::Event {
+            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+            //         correlation: None,
+            //         causation: None,
+            //         data: serde_json::Value::Null,
+            //         metadata: serde_json::Value::Null,
+            //         debug: false,
+            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+            //     },
+            //     data::Event {
+            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+            //         correlation: None,
+            //         causation: None,
+            //         data: serde_json::Value::Null,
+            //         metadata: serde_json::Value::Null,
+            //         debug: false,
+            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+            //     },
+            //     data::Event {
+            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+            //         correlation: None,
+            //         causation: None,
+            //         data: serde_json::Value::Null,
+            //         metadata: serde_json::Value::Null,
+            //         debug: false,
+            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+            //     },
+            //     data::Event {
+            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+            //         correlation: None,
+            //         causation: None,
+            //         data: serde_json::Value::Null,
+            //         metadata: serde_json::Value::Null,
+            //         debug: false,
+            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+            //     },
+            //     data::Event {
+            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+            //         correlation: None,
+            //         causation: None,
+            //         data: serde_json::Value::Null,
+            //         metadata: serde_json::Value::Null,
+            //         debug: false,
+            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+            //     },
+            //     data::Event {
+            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+            //         correlation: None,
+            //         causation: None,
+            //         data: serde_json::Value::Null,
+            //         metadata: serde_json::Value::Null,
+            //         debug: false,
+            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+            //     },
+            //     data::Event {
+            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+            //         correlation: None,
+            //         causation: None,
+            //         data: serde_json::Value::Null,
+            //         metadata: serde_json::Value::Null,
+            //         debug: false,
+            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+            //     },
+            //     data::Event {
+            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
+            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
+            //         correlation: None,
+            //         causation: None,
+            //         data: serde_json::Value::Null,
+            //         metadata: serde_json::Value::Null,
+            //         debug: false,
+            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
+            //     }
+            // ];
             // for event in data {
             //     println!("Event = {:?}", event);
             //     // await!(tx.send(Ok(event.into())))?
