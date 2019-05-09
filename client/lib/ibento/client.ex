@@ -14,18 +14,19 @@ defmodule Ibento.Client do
     stream
   end
 
-  def loop(stream, cursor, mod) do
+  def loop(stream, cursor, mod, time) do
     case :grpcbox_client.recv_data(stream, 5000) do
       {:ok, data} ->
         event = :ibento_event.decode(data)
         :ok = mod.perform(event)
 
         new_cursor = event.ingest_id
-        loop(stream, new_cursor, mod)
+        loop(stream, new_cursor, mod, time)
       {:error, :closed} ->
-        IO.inspect(:closed)
-        :grpcbox_client_stream.close_and_flush(stream)
-        consume(mod, cursor)
+        # :ok = :h2_stream.stop(stream.stream_pid)
+        # :grpcbox_client_stream.close_and_flush(stream)
+        IO.puts "timing: #{System.convert_time_unit(:timer.now_diff(:erlang.timestamp(), time), :microsecond, :millisecond)}ms"
+         consume(mod, cursor)
       :stream_finished ->
         IO.puts "ok"
         consume(mod, cursor)
@@ -39,7 +40,7 @@ defmodule Ibento.Client do
     config
     |> Map.put(:after, cursor)
     |> subscribe()
-    |> loop(cursor, mod)
+    |> loop(cursor, mod, :erlang.timestamp())
   end
 
   @type cursor :: String.t()
