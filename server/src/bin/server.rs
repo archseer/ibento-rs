@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-    
-#![allow(unused_variables)]
 #![feature(async_await, await_macro)]
 
 use ibento::grpc::{server, Event, SubscribeRequest};
@@ -41,8 +38,39 @@ struct Ibento {
     state: Arc<State>,
 }
 
+type DbPool = Pool<ConnectionManager<PgConnection>>;
+
 struct State {
-    pool: Pool<ConnectionManager<PgConnection>>,
+    pool: DbPool,
+}
+
+fn fetch_events(pool: DbPool, request: SubscribeRequest) -> Vec<data::Event> {
+    let connection = pool.get().unwrap();
+    use schema::{events, streams, stream_events};
+
+    // TODO: I wish I could mark the field as prost optional, then I can do request.limit.or(5)
+    let limit = if request.limit != 0 { request.limit } else { 5 };
+    let after = if request.after != "" { Some(request.after.clone()) } else { None };
+    let topics = if request.topics.is_empty() { vec![String::from("$all")] } else { request.topics.clone() };
+
+    let mut query = events::table
+        .limit(limit as i64)
+        .order_by(events::ingest_id.asc())
+        .into_boxed();
+
+    if let Some(after) = &after {
+        // TODO: extract parsing, return tower_grpc::Status::new(Code::InvalidArgument, "message here")
+        let after = uuid::Uuid::parse_str(after).expect("Invalid after ulid");
+        query = query.filter(events::ingest_id.gt(after));
+    }
+
+    use diesel::pg::expression::dsl::any;
+
+    query
+        .left_join(stream_events::table.left_join(streams::table))
+        .filter(streams::source.eq(any(topics)))
+        .load::<crate::data::Event>(&connection)
+        .expect("Error loading events")
 }
 
 impl ibento::grpc::server::Ibento for Ibento {
@@ -55,150 +83,17 @@ impl ibento::grpc::server::Ibento for Ibento {
         println!("Subscribe = {:?}", request);
 
         let request = request.into_inner();
-        // TODO: I wish I could mark the field as prost optional, then I can do request.limit.or(5)
-        let limit = if request.limit != 0 { request.limit } else { 5 };
-        let after = if request.after != "" { Some(request.after.clone()) } else { None };
 
         let (mut tx, rx) = mpsc::channel::<Result<Event, tower_grpc::Status>>(4);
 
-        // let state = self.state.clone();
-
         let pool = self.state.pool.clone();
-        /*runtime*/tokio::spawn(async move {
+
+        tokio::spawn(async move {
             // TODO error handling
-            let data = await!(blocking_fn(|| {
-                println!("before");
-                let connection = pool.get().unwrap();
-                error!("test2");
-                use schema::{events, streams, stream_events};
+            /*let data = await!(blocking_fn(|| {*/
+            /*}));*/
+            let data = fetch_events(pool, request);
 
-                let topics = if request.topics.is_empty() { vec![String::from("$all")] } else { request.topics.clone() };
-
-                let mut query = events::table
-                    .limit(limit as i64)
-                    .order_by(events::ingest_id.asc())
-                    .into_boxed();
-
-                if let Some(after) = &after {
-                    // TODO: extract parsing, return tower_grpc::Status::new(Code::InvalidArgument, "message here")
-                    let after = uuid::Uuid::parse_str(after).expect("Invalid after ulid");
-                    query = query.filter(events::ingest_id.gt(after));
-                }
-
-                use diesel::pg::expression::dsl::any;
-
-                println!("between");
-                let res = query
-                    .left_join(stream_events::table.left_join(streams::table))
-                    .filter(streams::source.eq(any(topics)))
-                    .load::<crate::data::Event>(&connection)
-                    .expect("Error loading events");
-                println!("after");
-                drop(connection);
-                res
-            }));
-
-            // let data = vec![
-            //     data::Event {
-            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-            //         correlation: None,
-            //         causation: None,
-            //         data: serde_json::Value::Null,
-            //         metadata: serde_json::Value::Null,
-            //         debug: false,
-            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-            //     },
-            //     data::Event {
-            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-            //         correlation: None,
-            //         causation: None,
-            //         data: serde_json::Value::Null,
-            //         metadata: serde_json::Value::Null,
-            //         debug: false,
-            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-            //     },
-            //     data::Event {
-            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-            //         correlation: None,
-            //         causation: None,
-            //         data: serde_json::Value::Null,
-            //         metadata: serde_json::Value::Null,
-            //         debug: false,
-            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-            //     },
-            //     data::Event {
-            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-            //         correlation: None,
-            //         causation: None,
-            //         data: serde_json::Value::Null,
-            //         metadata: serde_json::Value::Null,
-            //         debug: false,
-            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-            //     },
-            //     data::Event {
-            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-            //         correlation: None,
-            //         causation: None,
-            //         data: serde_json::Value::Null,
-            //         metadata: serde_json::Value::Null,
-            //         debug: false,
-            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-            //     },
-            //     data::Event {
-            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-            //         correlation: None,
-            //         causation: None,
-            //         data: serde_json::Value::Null,
-            //         metadata: serde_json::Value::Null,
-            //         debug: false,
-            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-            //     },
-            //     data::Event {
-            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-            //         correlation: None,
-            //         causation: None,
-            //         data: serde_json::Value::Null,
-            //         metadata: serde_json::Value::Null,
-            //         debug: false,
-            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-            //     },
-            //     data::Event {
-            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-            //         correlation: None,
-            //         causation: None,
-            //         data: serde_json::Value::Null,
-            //         metadata: serde_json::Value::Null,
-            //         debug: false,
-            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-            //     },
-            //     data::Event {
-            //         id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         ingest_id: uuid::Uuid::parse_str("01668484-c7d7-0000-0000-000000000011").unwrap(),
-            //         type_: "Elixir.Viking.Events.DriverCreated".to_owned(),
-            //         correlation: None,
-            //         causation: None,
-            //         data: serde_json::Value::Null,
-            //         metadata: serde_json::Value::Null,
-            //         debug: false,
-            //         inserted_at: chrono::NaiveDateTime::from_timestamp(1_000_000_000, 0)
-            //     }
-            // ];
             // for event in data {
             //     println!("Event = {:?}", event);
             //     // await!(tx.send(Ok(event.into())))?
@@ -258,12 +153,12 @@ pub fn main() {
 
         let addr: std::net::SocketAddr = "127.0.0.1:5600".parse().unwrap();
 
-       let serve_span = span!(
-            Level::INFO,
-            "serve",
-            local_ip = field::debug(addr.ip()),
-            local_port = addr.port() as u64
-        );
+       // let serve_span = span!(
+       //      Level::INFO,
+       //      "serve",
+       //      local_ip = field::debug(addr.ip()),
+       //      local_port = addr.port() as u64
+       //  );
 
         let new_service = server::IbentoServer::new(handler);
 
