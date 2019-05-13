@@ -453,6 +453,7 @@ dependencies = [
  "diesel 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "dotenv 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-preview 0.3.0-alpha.16 (git+https://github.com/rust-lang-nursery/futures-rs/)",
  "http 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.12.28 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -472,7 +473,7 @@ dependencies = [
  "tokio-trace-futures 0.0.1 (git+https://github.com/tokio-rs/tokio-trace-nursery)",
  "tokio-trace-tower-http 0.1.0 (git+https://github.com/tokio-rs/tokio-trace-nursery)",
  "tower-grpc 0.1.0 (git+https://github.com/tower-rs/tower-grpc)",
- "tower-grpc-build 0.1.0 (git+https://github.com/LucioFranco/tower-grpc/?branch=hyper)",
+ "tower-grpc-build 0.1.0 (git+https://github.com/tower-rs/tower-grpc)",
  "tower-hyper 0.1.0 (git+https://github.com/tower-rs/tower-hyper)",
  "tower-request-modifier 0.1.0 (git+https://github.com/tower-rs/tower-http)",
  "tower-service 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1368,7 +1369,7 @@ dependencies = [
 [[package]]
 name = "tower-grpc-build"
 version = "0.1.0"
-source = "git+https://github.com/LucioFranco/tower-grpc/?branch=hyper#344a3cf609b008fddc28acddd3659a7e4d5a18fa"
+source = "git+https://github.com/tower-rs/tower-grpc#62be26fd6cd6757d1ea0a2edc48d93c0937b36d5"
 dependencies = [
  "codegen 0.1.1 (git+https://github.com/carllerche/codegen)",
  "heck 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1737,7 +1738,7 @@ dependencies = [
 "checksum tower-buffer 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5c98a7784e6c8ba106bc98d44ed1dbb9c018a8e0322e5e894d365f9020967128"
 "checksum tower-discover 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "73a7632286f78164d65d18fd0e570307acde9362489aa5c8c53e6315cc2bde47"
 "checksum tower-grpc 0.1.0 (git+https://github.com/tower-rs/tower-grpc)" = "<none>"
-"checksum tower-grpc-build 0.1.0 (git+https://github.com/LucioFranco/tower-grpc/?branch=hyper)" = "<none>"
+"checksum tower-grpc-build 0.1.0 (git+https://github.com/tower-rs/tower-grpc)" = "<none>"
 "checksum tower-http 0.1.0 (git+https://github.com/tower-rs/tower-http)" = "<none>"
 "checksum tower-http-util 0.1.0 (git+https://github.com/tower-rs/tower-http)" = "<none>"
 "checksum tower-hyper 0.1.0 (git+https://github.com/tower-rs/tower-hyper)" = "<none>"

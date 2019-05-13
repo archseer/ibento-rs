@@ -3,6 +3,8 @@ defmodule Ibento.Client do
   """
   require Logger
 
+  @limit 10
+
   # <<(:erlang.system_time(:millisecond) - :timer.minutes(5))::unsigned-big-integer-unit(1)-size(48), 0::80>>`
   # Or if you wanted it to be `before` a certain time non-inclusive:
   # `<<(:erlang.system_time(:millisecond) - :timer.minutes(5))::unsigned-big-integer-unit(1)-size(48), (:erlang.bsl(1, 80) - 1)::80>>
@@ -14,33 +16,45 @@ defmodule Ibento.Client do
     stream
   end
 
-  def loop(stream, cursor, mod, time) do
+  defstruct [:cursor, :time]
+
+  def loop(stream, mod, %{cursor: cursor, time: time} = state) do
     case :grpcbox_client.recv_data(stream, 5000) do
       {:ok, data} ->
         event = :ibento_event.decode(data)
         :ok = mod.perform(event)
 
-        new_cursor = event.ingest_id
-        loop(stream, new_cursor, mod, time)
+        new_state =
+          state
+          |> Map.put(:cursor, event.ingest_id)
+          |> Map.put(:enqueued, state.enqueued - 1)
+
+        loop(stream, mod, new_state)
       {:error, :closed} ->
-        # :ok = :h2_stream.stop(stream.stream_pid)
-        # :grpcbox_client_stream.close_and_flush(stream)
+        # TODO: this branch should only happen on errors, not on normal socket close.
         IO.puts "timing: #{System.convert_time_unit(:timer.now_diff(:erlang.timestamp(), time), :microsecond, :millisecond)}ms"
-         consume(mod, cursor)
+        consume(mod, state)
       :stream_finished ->
-        IO.puts "ok"
-        consume(mod, cursor)
+          # we consumed all the data, there might be more
+        if state.enqueued != 0 do
+          # we didn't receive all items, so we might be up to date. sleep!
+          Process.sleep(:timer.minutes(1))
+        end
+        consume(mod, state)
     end
   end
 
-  def consume(mod, cursor \\ nil) do
+  def consume(mod, state \\ nil) do
     config = mod.config()
-    {:ok, cursor} = if cursor, do: {:ok, cursor}, else: mod.fetch_cursor()
+    state =
+      (state || %__MODULE__{cursor: mod.fetch_cursor()})
+      |> Map.put(:time, :erlang.timestamp())
+      |> Map.put(:enqueued, Map.get(config, :limit, @limit))
 
     config
-    |> Map.put(:after, cursor)
+    |> Map.put(:after, Map.get(state, :cursor))
     |> subscribe()
-    |> loop(cursor, mod, :erlang.timestamp())
+    |> loop(mod, state)
   end
 
   @type cursor :: String.t()
@@ -64,7 +78,7 @@ defmodule Ibento.Client do
     end
 
     def fetch_cursor do
-      {:ok, "01667f19-9e88-0000-0000-000000000002"}
+      "01667f19-9e88-0000-0000-000000000002"
     end
 
     def perform(event) do

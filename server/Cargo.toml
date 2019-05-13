@@ -16,7 +16,7 @@ name = "ibento-client"
 path = "src/bin/client.rs"
 
 [dependencies]
-# futures01 = { package = "futures", version = "0.1" }
+futures01 = { package = "futures", version = "0.1" }
 futures-preview = {git = "https://github.com/rust-lang-nursery/futures-rs/", features = ["compat", "io-compat", "async-await", "nightly"]}
 bytes = "0.4"
 env_logger = { version = "0.6.1", default-features = false }
@@ -55,5 +55,5 @@ prost = { git = "https://github.com/archseer/prost", features = ["serde_json"] }
 prost-build = { git = "https://github.com/archseer/prost" }
 
 [build-dependencies]
-tower-grpc-build = { git = "https://github.com/LucioFranco/tower-grpc/", branch = "hyper", features = ["tower-hyper"] }
+tower-grpc-build = { git = "https://github.com/tower-rs/tower-grpc", features = ["tower-hyper"] }
 prost-build = { git = "https://github.com/archseer/prost" }
