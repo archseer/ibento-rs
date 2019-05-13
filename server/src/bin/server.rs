@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use ibento::grpc::{server, Event, SubscribeRequest};
 
@@ -90,19 +90,19 @@ impl ibento::grpc::server::Ibento for Ibento {
 
         tokio::spawn(async move {
             // TODO error handling
-            /*let data = await!(blocking_fn(|| {*/
-            /*}));*/
+            /*let data = blocking_fn(|| {*/
+            /*}).await;*/
             let data = fetch_events(pool, request);
 
             // for event in data {
             //     println!("Event = {:?}", event);
-            //     // await!(tx.send(Ok(event.into())))?
+            //     // tx.send(Ok(event.into())).await?
             // }
             // send_all might be better
             let mut stream = futures::stream::iter(data.into_iter().map(|v| Ok(v.into())));
-            await!(tx.send_all(&mut stream)); //?;
+            tx.send_all(&mut stream).await; //?;
 
-            // await!(tx.send(Err(tower_grpc::Status::new(tower_grpc::Code::Ok, "")))).unwrap();
+            // tx.send(Err(tower_grpc::Status::new(tower_grpc::Code::Ok, ""))).await.unwrap();
             // Ok::<(), mpsc::SendError>(())
         }.unit_error().boxed().compat());
 
@@ -143,7 +143,7 @@ pub fn main() {
         let manager = ConnectionManager::new(database_url);
 
         let pool = r2d2::Pool::builder()
-                .max_size(16)
+                .max_size(32)
                 .build(manager)
                 .expect("could not initiate test db pool");
 
@@ -202,6 +202,6 @@ pub fn main() {
             .map_err(|e| eprintln!("accept error: {}", e));
 
         tokio::run(serve);
-        // await!(serve.compat()); // TODO: ?
+        // serve.compat().await; // TODO: ?
     });
 }
